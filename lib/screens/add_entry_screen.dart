@@ -49,8 +49,16 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
     if (widget.selectedMonth != null) {
-      _selectedDate = DateTime(widget.selectedMonth!.year, widget.selectedMonth!.month, 1);
+      final selectedMonth = widget.selectedMonth!;
+      // Nếu đang trong tháng hiện tại, chọn ngày hiện tại
+      // Nếu là tháng quá khứ, chọn ngày 1
+      if (selectedMonth.year == now.year && selectedMonth.month == now.month) {
+        _selectedDate = DateTime(now.year, now.month, now.day);
+      } else {
+        _selectedDate = DateTime(selectedMonth.year, selectedMonth.month, 1);
+      }
     } else {
       _selectedDate = DateTime.now();
     }

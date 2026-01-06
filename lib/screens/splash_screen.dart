@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main_screen.dart';
 import '../services/notification_service.dart';
+import '../services/update_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -42,9 +43,36 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         final granted = await notificationService.requestPermissions();
         debugPrint('Notification Permission Granted: $granted');
         
-        await notificationService.scheduleDailyNotification();
+        if (granted == true) {
+          // TEST MODE: Uncomment dòng dưới để test notification sau 2 phút
+          // await notificationService.testScheduledNotifications();
+          
+          // PRODUCTION: Schedule notification lúc 23h
+          await notificationService.scheduleDailyNotification(testMode: false);
+        } else {
+          debugPrint('Notification permission not granted!');
+        }
       } catch (e) {
         debugPrint('Notification setup failed: $e');
+        debugPrint('Error details: ${e.toString()}');
+      }
+    });
+
+    // Check for updates
+    Future.delayed(const Duration(milliseconds: 1000), () async {
+      if (!mounted) return;
+      try {
+        final updateService = UpdateService();
+        final updateInfo = await updateService.checkForUpdate();
+        
+        if (updateInfo != null && mounted) {
+          final shouldUpdate = await updateService.showUpdateDialog(context, updateInfo);
+          if (shouldUpdate == true && mounted) {
+            await updateService.downloadAndInstall(updateInfo.downloadUrl, context);
+          }
+        }
+      } catch (e) {
+        debugPrint('Update check failed: $e');
       }
     });
 

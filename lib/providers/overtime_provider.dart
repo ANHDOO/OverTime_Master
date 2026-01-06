@@ -4,6 +4,7 @@ import '../models/debt_entry.dart';
 import '../models/cash_transaction.dart';
 import '../services/storage_service.dart';
 import '../services/settings_service.dart';
+import '../services/google_sheets_service.dart';
 import '../utils/overtime_calculator.dart';
 
 class OvertimeProvider with ChangeNotifier {
@@ -257,15 +258,102 @@ class OvertimeProvider with ChangeNotifier {
     );
     await _storageService.insertCashTransaction(transaction);
     await fetchEntries();
+    
+    // Tự động sync lên Google Sheets
+    await _syncProjectToSheets(project);
   }
 
   Future<void> deleteCashTransaction(int id) async {
+    // Lấy project trước khi xóa để sync sau
+    final transaction = _cashTransactions.firstWhere((t) => t.id == id);
+    final project = transaction.project;
+    
     await _storageService.deleteCashTransaction(id);
     await fetchEntries();
+    
+    // Sync lại sau khi xóa
+    await _syncProjectToSheets(project);
   }
 
   Future<void> updateCashTransaction(CashTransaction transaction) async {
+    final oldProject = _cashTransactions.firstWhere((t) => t.id == transaction.id).project;
+    
     await _storageService.updateCashTransaction(transaction);
     await fetchEntries();
+    
+    // Sync cả project cũ và mới (nếu đổi project)
+    await _syncProjectToSheets(oldProject);
+    if (transaction.project != oldProject) {
+      await _syncProjectToSheets(transaction.project);
+    }
+  }
+  
+  /// Tính tổng income và expense theo project
+  Map<String, double> _getProjectTotals(String project) {
+    final projectTransactions = _cashTransactions.where((t) => t.project == project).toList();
+    final income = projectTransactions
+        .where((t) => t.type == TransactionType.income)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    final expense = projectTransactions
+        .where((t) => t.type == TransactionType.expense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    return {'income': income, 'expense': expense};
+  }
+  
+  /// Đồng bộ project lên Google Sheets
+  Future<void> _syncProjectToSheets(String project) async {
+    if (project == 'Mặc định') return; // Không sync project mặc định
+    
+    try {
+      final sheetsService = GoogleSheetsService();
+      
+      // Kiểm tra xem có access token chưa
+      final token = await sheetsService.getAccessToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('⚠️ Google Sheets access token chưa được cấu hình. Bỏ qua sync.');
+        return;
+      }
+      
+      // Lấy tất cả transaction của project
+      final projectTransactions = _cashTransactions.where((t) => t.project == project).toList();
+      
+      // Tính tổng thu
+      final totalIncome = projectTransactions
+          .where((t) => t.type == TransactionType.income)
+          .fold(0.0, (sum, t) => sum + t.amount);
+          
+      // Lấy danh sách chi tiêu để sync chi tiết
+      final expenses = projectTransactions
+          .where((t) => t.type == TransactionType.expense)
+          .map((t) => {
+            'name': t.description,
+            'amount': t.amount,
+          })
+          .toList();
+      
+      final success = await sheetsService.syncProjectDetails(
+        projectName: project,
+        totalIncome: totalIncome,
+        expenses: expenses,
+      );
+      
+      if (success) {
+        debugPrint('✅ Đã đồng bộ project $project lên Google Sheets');
+      } else {
+        debugPrint('❌ Lỗi khi đồng bộ project $project');
+      }
+    } catch (e) {
+      debugPrint('Error syncing to sheets: $e');
+    }
+  }
+  
+  /// Đồng bộ tất cả projects lên Google Sheets (manual sync)
+  Future<void> syncAllProjectsToSheets() async {
+    final projects = _cashTransactions.map((t) => t.project).toSet();
+    for (final project in projects) {
+      if (project != 'Mặc định') {
+        await _syncProjectToSheets(project);
+      }
+    }
   }
 }

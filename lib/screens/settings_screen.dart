@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/overtime_provider.dart';
 import '../widgets/smart_money_input.dart';
+import '../services/update_service.dart';
+import '../services/notification_service.dart';
+import '../services/google_sheets_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -142,6 +146,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: const Text('Lưu cài đặt', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+                _buildSectionTitle('Thông tin ứng dụng'),
+                const SizedBox(height: 12),
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      final info = snapshot.data!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow('Phiên bản', info.version),
+                          _buildInfoRow('Build', info.buildNumber),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _checkForUpdate(context),
+                              icon: const Icon(Icons.system_update),
+                              label: const Text('Kiểm tra cập nhật'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _testNotifications(context),
+                              icon: const Icon(Icons.notifications_active),
+                              label: const Text('Test thông báo (2 phút)'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                foregroundColor: Colors.orange,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          _buildSectionTitle('Đồng bộ Google Sheets'),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showGoogleSheetsSettings(context, provider),
+                              icon: const Icon(Icons.cloud_sync),
+                              label: const Text('Cấu hình Google Sheets'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                foregroundColor: Colors.blue,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _syncToSheets(context, provider),
+                              icon: const Icon(Icons.sync),
+                              label: const Text('Đồng bộ tất cả dự án'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                backgroundColor: Colors.teal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return const CircularProgressIndicator();
+                  },
                 ),
               ],
             ),
@@ -321,6 +401,227 @@ class _SettingsScreenState extends State<SettingsScreen> {
           hourlyRate: rate,
         );
         _showSuccess('Đã cập nhật lương/giờ và tính lại tất cả thẻ OT!');
+      }
+    }
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey.shade600)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _checkForUpdate(BuildContext context) async {
+    try {
+      final updateService = UpdateService();
+      final updateInfo = await updateService.checkForUpdate();
+      
+      if (!context.mounted) return;
+      
+      if (updateInfo != null) {
+        final shouldUpdate = await updateService.showUpdateDialog(context, updateInfo);
+        if (shouldUpdate == true && context.mounted) {
+          await updateService.downloadAndInstall(updateInfo.downloadUrl, context);
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bạn đang sử dụng phiên bản mới nhất!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi kiểm tra cập nhật: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _testNotifications(BuildContext context) async {
+    try {
+      final notificationService = NotificationService();
+      
+      // Kiểm tra permission trước
+      final granted = await notificationService.requestPermissions();
+      if (granted != true) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cần cấp quyền thông báo để test!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Test notification ngay lập tức
+      await notificationService.showTestNotification();
+      
+      // Schedule test notification sau 2 phút
+      await notificationService.testScheduledNotifications();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã gửi thông báo test! Sẽ có 2 thông báo sau 2 phút nữa.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi test thông báo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showGoogleSheetsSettings(BuildContext context, OvertimeProvider provider) async {
+    final sheetsService = GoogleSheetsService();
+    final currentToken = await sheetsService.getAccessToken();
+    final tokenController = TextEditingController(text: currentToken ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cloud_sync, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Cấu hình Google Sheets'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Để đồng bộ dữ liệu với Google Sheets, bạn cần cung cấp Access Token.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Cách lấy Access Token:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '1. Vào Google Cloud Console\n'
+                '2. Tạo OAuth 2.0 credentials\n'
+                '3. Lấy access token từ OAuth flow\n'
+                '4. Dán token vào đây',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: tokenController,
+                decoration: const InputDecoration(
+                  labelText: 'Access Token',
+                  hintText: 'ya29.a0AfH6SMC...',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () {
+                  // Mở link hướng dẫn
+                },
+                icon: const Icon(Icons.help_outline, size: 16),
+                label: const Text('Hướng dẫn chi tiết'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final token = tokenController.text.trim();
+              if (token.isNotEmpty) {
+                await sheetsService.setAccessToken(token);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Đã lưu Access Token!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _syncToSheets(BuildContext context, OvertimeProvider provider) async {
+    try {
+      final sheetsService = GoogleSheetsService();
+      final token = await sheetsService.getAccessToken();
+      
+      if (token == null || token.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Vui lòng cấu hình Access Token trước!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Hiển thị loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+      
+      await provider.syncAllProjectsToSheets();
+      
+      if (context.mounted) {
+        Navigator.pop(context); // Đóng loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã đồng bộ tất cả dự án lên Google Sheets!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Đóng loading nếu có
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi đồng bộ: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
