@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/overtime_provider.dart';
-import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -27,6 +28,16 @@ class OvertimeApp extends StatelessWidget {
     return MaterialApp(
       title: 'OT Master',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('vi', 'VN'),
+      supportedLocales: const [
+        Locale('vi', 'VN'),
+        Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -47,7 +58,7 @@ class OvertimeApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -40,6 +40,9 @@ dependencies:
   path: ^1.9.1
   google_fonts: ^6.3.3
   shared_preferences: ^2.5.4
+  flutter_localizations:
+    sdk: flutter
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:

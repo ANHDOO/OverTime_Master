@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/overtime_provider.dart';
 import 'add_entry_screen.dart';
-
+import 'entry_detail_screen.dart';
+import 'interest_calculator_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -20,6 +21,16 @@ class HomeScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate),
+            tooltip: 'Tính lãi nợ lương',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const InterestCalculatorScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -137,6 +148,14 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                 ],
                               ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EntryDetailScreen(entry: entry),
+                                  ),
+                                );
+                              },
                               onLongPress: () {
                                 _showDeleteDialog(context, provider, entry.id!);
                               },
