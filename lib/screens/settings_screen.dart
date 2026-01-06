@@ -28,10 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _totalSalaryController = TextEditingController(
         text: provider.monthlySalary != null && provider.monthlySalary! > 0 
             ? provider.monthlySalary!.toStringAsFixed(0) 
-            : '');
+            : '15000000');
     _allowanceController = TextEditingController(text: provider.allowance.toStringAsFixed(0));
     _leaveDaysController = TextEditingController(text: provider.leaveDays.toString());
-    _useMonthlySalary = provider.monthlySalary != null && provider.monthlySalary! > 0;
+    _useMonthlySalary = provider.monthlySalary == null || provider.monthlySalary! >= 0;
   }
 
   @override
@@ -284,6 +284,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ValueChanged<double>? onChanged,
   }) {
     return SmartMoneyInput(
+      key: ValueKey(controller.hashCode),
       controller: controller,
       onChanged: onChanged,
       label: hint,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_screen.dart';
+import '../services/notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,6 +31,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _controller.forward();
+
+    // Initialize notifications after a short delay (UI loaded first)
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      try {
+        final notificationService = NotificationService();
+        await notificationService.init();
+        debugPrint('Notification Service Initialized');
+        
+        final granted = await notificationService.requestPermissions();
+        debugPrint('Notification Permission Granted: $granted');
+        
+        await notificationService.scheduleDailyNotification();
+      } catch (e) {
+        debugPrint('Notification setup failed: $e');
+      }
+    });
 
     Future.delayed(const Duration(milliseconds: 2000), () {
       if (mounted) {
@@ -106,7 +123,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: const Text(
-                    'OT Master',
+                    'Sổ Tay Công Việc',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 36,

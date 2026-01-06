@@ -13,7 +13,7 @@ class OvertimeProvider with ChangeNotifier {
   List<DebtEntry> _debtEntries = [];
   List<CashTransaction> _cashTransactions = [];
   double _hourlyRate = 85275.0;
-  double? _monthlySalary;
+  double? _monthlySalary = 15000000.0;
   double _allowance = 945000.0;
   int _leaveDays = 0;
   bool _isLoading = false;
@@ -218,6 +218,21 @@ class OvertimeProvider with ChangeNotifier {
 
   Future<void> deleteDebtEntry(int id) async {
     await _storageService.deleteDebtEntry(id);
+    await fetchEntries();
+  }
+
+  Future<void> toggleDebtPaid(DebtEntry entry) async {
+    final isPaid = !entry.isPaid;
+    final updatedEntry = entry.copyWith(
+      isPaid: isPaid,
+      paidAt: isPaid ? DateTime.now() : null,
+    );
+    await _storageService.updateDebtEntry(updatedEntry);
+    await fetchEntries();
+  }
+
+  Future<void> updateDebtEntry(DebtEntry entry) async {
+    await _storageService.updateDebtEntry(entry);
     await fetchEntries();
   }
 

@@ -517,7 +517,7 @@ class DebtTab extends StatelessWidget {
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: debt.isPaid ? Colors.grey.shade100 : Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
@@ -535,38 +535,56 @@ class DebtTab extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.shade100,
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            'Tháng ${monthFormat.format(debt.month)}',
-                                            style: TextStyle(
-                                              color: Colors.orange.shade800,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          // Paid checkbox
+                                          SizedBox(
+                                            width: 40,
+                                            height: 40,
+                                            child: Checkbox(
+                                              value: debt.isPaid,
+                                              onChanged: (value) => provider.toggleDebtPaid(debt),
+                                              activeColor: Colors.green,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        if (interest['daysLate']! > 0) ...[
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.red.shade100,
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              'Quá ${interest['daysLate']!.toInt()} ngày',
-                                              style: TextStyle(color: Colors.red.shade800, fontSize: 10, fontWeight: FontWeight.bold),
+                                          Flexible(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: debt.isPaid ? Colors.green.shade100 : Colors.orange.shade100,
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                debt.isPaid ? 'Đã thanh toán' : 'Tháng ${monthFormat.format(debt.month)}',
+                                                style: TextStyle(
+                                                  color: debt.isPaid ? Colors.green.shade800 : Colors.orange.shade800,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                  decoration: debt.isPaid ? TextDecoration.lineThrough : null,
+                                                ),
+                                              ),
                                             ),
                                           ),
+                                          if (!debt.isPaid && interest['daysLate']! > 0) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.shade100,
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                'Quá ${interest['daysLate']!.toInt()} ngày',
+                                                style: TextStyle(color: Colors.red.shade800, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ],
                                         ],
-                                      ],
+                                      ),
                                     ),
                                     IconButton(
                                       icon: Icon(Icons.delete_outline, color: Colors.grey.shade400),
@@ -583,7 +601,15 @@ class DebtTab extends StatelessWidget {
                                       children: [
                                         Text('Gốc nợ', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                                         const SizedBox(height: 4),
-                                        Text(currencyFormat.format(debt.amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        Text(
+                                          currencyFormat.format(debt.amount), 
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 16,
+                                            decoration: debt.isPaid ? TextDecoration.lineThrough : null,
+                                            color: debt.isPaid ? Colors.grey.shade600 : Colors.black,
+                                          )
+                                        ),
                                       ],
                                     ),
                                     Column(
@@ -593,7 +619,12 @@ class DebtTab extends StatelessWidget {
                                         const SizedBox(height: 4),
                                         Text(
                                           currencyFormat.format(interest['totalInterest']),
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold, 
+                                            fontSize: 16, 
+                                            color: debt.isPaid ? Colors.grey.shade600 : Colors.red,
+                                            decoration: debt.isPaid ? TextDecoration.lineThrough : null,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -603,10 +634,17 @@ class DebtTab extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('Tổng phải trả:', style: TextStyle(color: Colors.grey.shade600)),
+                                    Text(
+                                      debt.isPaid ? 'Tổng đã trả:' : 'Tổng phải trả:', 
+                                      style: TextStyle(color: Colors.grey.shade600)
+                                    ),
                                     Text(
                                       currencyFormat.format(debt.amount + interest['totalInterest']!),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: 18, 
+                                        color: debt.isPaid ? Colors.blue.shade700 : Colors.green
+                                      ),
                                     ),
                                   ],
                                 ),

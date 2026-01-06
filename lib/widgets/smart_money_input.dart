@@ -22,9 +22,7 @@ class SmartMoneyInput extends StatefulWidget {
 }
 
 class _SmartMoneyInputState extends State<SmartMoneyInput> {
-  final LayerLink _layerLink = LayerLink();
-  OverlayEntry? _overlayEntry;
-  final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '', decimalDigits: 0);
+  List<double> _suggestions = [];
 
   @override
   void initState() {
@@ -35,113 +33,62 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
   @override
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
-    _removeOverlay();
     super.dispose();
   }
 
   void _onTextChanged() {
     final text = widget.controller.text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // 1. Update suggestions first to ensure UI is ready
+    List<double> newSuggestions = [];
+    if (text.isNotEmpty && text.length <= 3) {
+      newSuggestions = _generateSuggestions(text);
+    }
+    
+    if (_suggestions.toString() != newSuggestions.toString()) {
+      setState(() => _suggestions = newSuggestions);
+    }
+
+    // 2. Handle empty case
     if (text.isEmpty) {
-      _removeOverlay();
+      if (widget.onChanged != null) {
+        widget.onChanged!(0);
+      }
       return;
     }
 
-    // Format input with commas while typing
+    // 3. Parse and Format
     final number = double.tryParse(text);
     if (number != null) {
+      // Vietnamese format uses dot as thousand separator
       final formatted = NumberFormat('#,###', 'vi_VN').format(number);
+      
       if (widget.controller.text != formatted) {
+        widget.controller.removeListener(_onTextChanged);
         widget.controller.value = TextEditingValue(
           text: formatted,
           selection: TextSelection.collapsed(offset: formatted.length),
         );
+        widget.controller.addListener(_onTextChanged);
       }
+      
+      // 4. Notify parent to trigger calculations
       if (widget.onChanged != null) {
         widget.onChanged!(number);
       }
     }
-
-    // Show suggestions if input length is small (1-3 digits) to avoid spamming on large numbers
-    if (text.length >= 1 && text.length <= 3) {
-      _showOverlay(text);
-    } else {
-      _removeOverlay();
-    }
   }
 
-  void _showOverlay(String input) {
-    _removeOverlay();
-    final overlay = Overlay.of(context);
-    final renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
-
-    final suggestions = _generateSuggestions(input);
-    if (suggestions.isEmpty) return;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        width: size.width,
-        child: CompositedTransformFollower(
-          link: _layerLink,
-          showWhenUnlinked: false,
-          offset: Offset(0.0, size.height + 5.0),
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.white,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: suggestions.map((value) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ActionChip(
-                        backgroundColor: Colors.teal.shade50,
-                        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                        label: Text(
-                          _formatCompact(value),
-                          style: TextStyle(
-                            color: Colors.teal.shade900,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        onPressed: () {
-                          final formatted = NumberFormat('#,###', 'vi_VN').format(value);
-                          widget.controller.value = TextEditingValue(
-                            text: formatted,
-                            selection: TextSelection.collapsed(offset: formatted.length),
-                          );
-                          if (widget.onChanged != null) {
-                            widget.onChanged!(value);
-                          }
-                          _removeOverlay();
-                          // Keep focus to allow further editing if needed, or user can tap outside
-                        },
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+  void _selectSuggestion(double value) {
+    final formatted = NumberFormat('#,###', 'vi_VN').format(value);
+    widget.controller.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
-
-    overlay.insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    if (widget.onChanged != null) {
+      widget.onChanged!(value);
+    }
+    setState(() => _suggestions = []);
   }
 
   List<double> _generateSuggestions(String input) {
@@ -161,7 +108,7 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
       }
     }
 
-    // Sort and remove duplicates, limit to 6 suggestions to keep it "gọn"
+    // Sort and remove duplicates, limit to 6 suggestions
     return suggestions.toSet().toList()..sort();
   }
 
@@ -178,28 +125,59 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
 
   @override
   Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: TextField(
-        controller: widget.controller,
-        keyboardType: TextInputType.number,
-        style: widget.style ?? TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: widget.textColor ?? Colors.black,
-        ),
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: '0',
-          suffixText: '₫',
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Suggestions shown ABOVE the TextField
+        if (_suggestions.isNotEmpty) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _suggestions.map((value) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ActionChip(
+                    backgroundColor: Colors.blue.shade100,
+                    side: BorderSide(color: Colors.blue.shade300),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    label: Text(
+                      _formatCompact(value),
+                      style: TextStyle(
+                        color: Colors.blue.shade900,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    onPressed: () => _selectSuggestion(value),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        TextField(
+          controller: widget.controller,
+          keyboardType: TextInputType.number,
+          style: widget.style ?? TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: widget.textColor ?? Colors.black,
+          ),
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: '0',
+            suffixText: '₫',
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

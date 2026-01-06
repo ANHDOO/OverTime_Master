@@ -17,7 +17,7 @@ class StorageService {
     String path = join(await getDatabasesPath(), 'overtime.db');
     return await openDatabase(
       path,
-      version: 5,
+      version: 7,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE overtime(
@@ -40,7 +40,9 @@ class StorageService {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             month TEXT,
             amount REAL,
-            created_at TEXT
+            created_at TEXT,
+            is_paid INTEGER DEFAULT 0,
+            paid_at TEXT
           )
         ''');
         await db.execute('''
@@ -90,6 +92,16 @@ class StorageService {
           } catch (_) {}
           try {
             await db.execute("ALTER TABLE cash_transactions ADD COLUMN project TEXT DEFAULT 'Mặc định'");
+          } catch (_) {}
+        }
+        if (oldVersion < 6) {
+          try {
+            await db.execute('ALTER TABLE debt ADD COLUMN is_paid INTEGER DEFAULT 0');
+          } catch (_) {}
+        }
+        if (oldVersion < 7) {
+          try {
+            await db.execute('ALTER TABLE debt ADD COLUMN paid_at TEXT');
           } catch (_) {}
         }
       },
@@ -143,6 +155,16 @@ class StorageService {
   Future<int> deleteDebtEntry(int id) async {
     final db = await database;
     return await db.delete('debt', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> updateDebtEntry(DebtEntry entry) async {
+    final db = await database;
+    return await db.update(
+      'debt',
+      entry.toMap(),
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
   }
 
   // Cash Transaction methods
