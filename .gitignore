@@ -52,3 +52,5 @@ tool/temp_*.*
 
 *.zip
 *.rar
+tool/.github_token
+doctor.txt

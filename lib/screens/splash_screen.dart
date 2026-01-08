@@ -44,9 +44,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         debugPrint('Notification Permission Granted: $granted');
         
         if (granted == true) {
-          // TEST MODE: Uncomment dòng dưới để test notification sau 2 phút
-          // await notificationService.testScheduledNotifications();
-          
           // PRODUCTION: Schedule notification lúc 23h
           await notificationService.scheduleDailyNotification(testMode: false);
         } else {
@@ -54,7 +51,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         }
       } catch (e) {
         debugPrint('Notification setup failed: $e');
-        debugPrint('Error details: ${e.toString()}');
       }
     });
 
@@ -70,10 +66,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         if (result.hasUpdate && result.updateInfo != null) {
           final shouldUpdate = await updateService.showUpdateDialog(context, result.updateInfo!);
           if (shouldUpdate == true && mounted) {
-            await updateService.downloadAndInstall(result.updateInfo!.downloadUrl, context);
+            updateService.downloadInBackground();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Đang tải bản cập nhật ngầm...')),
+            );
           }
         } else if (result.error != null) {
-          // Chỉ log lỗi, không hiển thị cho user khi ở splash screen
           debugPrint('⚠️ Update check error: ${result.error}');
         }
       } catch (e) {
