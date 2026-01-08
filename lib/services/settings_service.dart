@@ -7,6 +7,7 @@ class SettingsService {
   static const String _leaveDaysKey = 'leave_days';
   static const double _defaultRate = 85275.0;
   static const double _defaultAllowance = 945000.0;
+  static const double _defaultMonthlySalary = 18000000.0;
 
   Future<double> getHourlyRate() async {
     final prefs = await SharedPreferences.getInstance();
@@ -20,7 +21,7 @@ class SettingsService {
 
   Future<double?> getMonthlySalary() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_monthlySalaryKey);
+    return prefs.getDouble(_monthlySalaryKey) ?? _defaultMonthlySalary;
   }
 
   Future<void> setMonthlySalary(double salary) async {

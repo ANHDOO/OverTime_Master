@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "471381440256",
+    "project_id": "idmav-app",
+    "storage_bucket": "idmav-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471381440256:android:02459374df27e21d6565e5",
+        "android_client_info": {
+          "package_name": "com.anhdo.note_overtime.note_overtime"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXRAazX7RoOHlTttijPzA5FaH5tp89NnA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,19 +5,24 @@ import '../models/cash_transaction.dart';
 import '../services/storage_service.dart';
 import '../services/settings_service.dart';
 import '../services/google_sheets_service.dart';
+import '../services/notification_service.dart';
 import '../utils/overtime_calculator.dart';
+import '../services/update_service.dart';
 
 class OvertimeProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
+  final NotificationService _notificationService = NotificationService();
   List<OvertimeEntry> _entries = [];
   List<DebtEntry> _debtEntries = [];
   List<CashTransaction> _cashTransactions = [];
   double _hourlyRate = 85275.0;
-  double? _monthlySalary = 15000000.0;
+  double? _monthlySalary = 18000000.0;
   double _allowance = 945000.0;
   int _leaveDays = 0;
   bool _isLoading = false;
+  bool _hasUpdate = false;
+  UpdateInfo? _updateInfo;
 
   List<OvertimeEntry> get entries => _entries;
   List<DebtEntry> get debtEntries => _debtEntries;
@@ -27,6 +32,8 @@ class OvertimeProvider with ChangeNotifier {
   double get allowance => _allowance;
   int get leaveDays => _leaveDays;
   bool get isLoading => _isLoading;
+  bool get hasUpdate => _hasUpdate;
+  UpdateInfo? get updateInfo => _updateInfo;
 
   double get totalMonthlyPay {
     double total = 0;
@@ -81,7 +88,49 @@ class OvertimeProvider with ChangeNotifier {
     _debtEntries = await _storageService.getAllDebtEntries();
     _cashTransactions = await _storageService.getAllCashTransactions();
     _isLoading = false;
+
+    // Schedule smart reminders after loading data
+    try {
+      await _notificationService.scheduleSmartReminders(
+        overtimeEntries: _entries,
+        debtEntries: _debtEntries,
+        cashTransactions: _cashTransactions,
+      );
+    } catch (e) {
+      debugPrint('Error scheduling smart reminders: $e');
+    }
+
     notifyListeners();
+    
+    // Silent update check
+    checkUpdateSilently();
+  }
+
+  Future<void> checkUpdateSilently() async {
+    try {
+      final updateService = UpdateService();
+      final result = await updateService.checkForUpdate();
+      _hasUpdate = result.hasUpdate;
+      _updateInfo = result.updateInfo;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error checking update silently: $e');
+    }
+  }
+
+  /// Close DB and reload everything from disk (used after external restore)
+  Future<void> reloadFromDisk() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _storageService.closeDatabase();
+      await fetchEntries();
+    } catch (e) {
+      debugPrint('Error reloading from disk: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> updateHourlyRate(double rate) async {
@@ -328,6 +377,7 @@ class OvertimeProvider with ChangeNotifier {
           .map((t) => {
             'name': t.description,
             'amount': t.amount,
+            'date': t.date, // Thêm ngày tháng cho ghi chú
           })
           .toList();
       
@@ -355,5 +405,41 @@ class OvertimeProvider with ChangeNotifier {
         await _syncProjectToSheets(project);
       }
     }
+  }
+
+  /// Tính tổng thu nhập thực tế tháng này (Lương chính + Phụ cấp + OT thực tế)
+  double getTotalIncomeSoFar() {
+    final now = DateTime.now();
+    return getTotalIncomeForMonth(now.year, now.month);
+  }
+
+  /// Tính tổng thu nhập thực tế cho một tháng cụ thể
+  double getTotalIncomeForMonth(int year, int month) {
+    double totalOT = 0;
+    for (var entry in _entries) {
+      if (entry.date.month == month && entry.date.year == year) {
+        totalOT += entry.totalPay;
+      }
+    }
+    final baseIncome = (monthlySalary ?? 0) + allowance;
+    return baseIncome + totalOT;
+  }
+
+  /// Phân tích xu hướng làm việc theo thứ trong tuần
+  Map<int, Map<String, dynamic>> getWorkTrends() {
+    // 1: Thứ 2, ..., 7: Chủ nhật
+    final trends = <int, Map<String, dynamic>>{};
+    for (int i = 1; i <= 7; i++) {
+      trends[i] = {'count': 0, 'totalHours': 0.0};
+    }
+
+    for (var entry in _entries) {
+      final weekday = entry.date.weekday;
+      trends[weekday]!['count'] = (trends[weekday]!['count'] as int) + 1;
+      final totalHours = entry.hours15 + entry.hours18 + entry.hours20;
+      trends[weekday]!['totalHours'] = (trends[weekday]!['totalHours'] as double) + totalHours;
+    }
+
+    return trends;
   }
 }

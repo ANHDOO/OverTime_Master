@@ -63,16 +63,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (!mounted) return;
       try {
         final updateService = UpdateService();
-        final updateInfo = await updateService.checkForUpdate();
+        final result = await updateService.checkForUpdate();
         
-        if (updateInfo != null && mounted) {
-          final shouldUpdate = await updateService.showUpdateDialog(context, updateInfo);
+        if (!mounted) return;
+        
+        if (result.hasUpdate && result.updateInfo != null) {
+          final shouldUpdate = await updateService.showUpdateDialog(context, result.updateInfo!);
           if (shouldUpdate == true && mounted) {
-            await updateService.downloadAndInstall(updateInfo.downloadUrl, context);
+            await updateService.downloadAndInstall(result.updateInfo!.downloadUrl, context);
           }
+        } else if (result.error != null) {
+          // Chỉ log lỗi, không hiển thị cho user khi ở splash screen
+          debugPrint('⚠️ Update check error: ${result.error}');
         }
       } catch (e) {
-        debugPrint('Update check failed: $e');
+        debugPrint('❌ Update check failed: $e');
       }
     });
 

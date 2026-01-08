@@ -8,6 +8,9 @@ import 'add_transaction_screen.dart';
 import 'entry_detail_screen.dart';
 import 'settings_screen.dart';
 import 'cash_flow_tab.dart';
+import 'statistics_screen.dart';
+import 'pit_calculator_screen.dart';
+import '../widgets/side_menu.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -19,6 +22,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   DateTime _otSelectedMonth = DateTime.now();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _onOTMonthChanged(DateTime month) {
     setState(() {
@@ -29,74 +33,97 @@ class _MainScreenState extends State<MainScreen> {
   String _getAppBarTitle() {
     switch (_currentIndex) {
       case 0:
-        return 'OT Master';
+        return 'Quỹ Dự Án';
       case 1:
-        return 'Lãi nợ lương';
-      case 2:
-        return 'Quỹ Phòng';
-      default:
         return 'OT Master';
+      case 2:
+        return 'Lãi nợ lương';
+      case 3:
+        return 'Tính thuế TNCN 2026';
+      default:
+        return 'Quỹ Dự Án';
     }
   }
 
   Color _getFabColor() {
     switch (_currentIndex) {
       case 0:
-        return Theme.of(context).colorScheme.primary;
-      case 1:
-        return Colors.orange.shade700;
-      case 2:
         return Colors.teal.shade700;
-      default:
+      case 1:
         return Theme.of(context).colorScheme.primary;
+      case 2:
+        return Colors.orange.shade700;
+      case 3:
+        return Colors.indigo.shade700;
+      default:
+        return Colors.teal.shade700;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: SideMenu(
+        onSelectTab: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        onClose: () {
+          _scaffoldKey.currentState?.openEndDrawer();
+        },
+        selectedIndex: _currentIndex,
+      ),
       appBar: AppBar(
         title: Text(
           _getAppBarTitle(),
-          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, fontSize: 15),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.show_chart),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                MaterialPageRoute(builder: (context) => const StatisticsScreen()),
               );
             },
           ),
+          // settings button removed per request
         ],
       ),
       body: IndexedStack(
         index: _currentIndex,
         children: [
+          const CashFlowTab(),
           OTTab(
             selectedMonth: _otSelectedMonth,
             onMonthChanged: _onOTMonthChanged,
           ),
           const DebtTab(),
-          const CashFlowTab(),
+          const PITCalculatorTab(),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _currentIndex == 3 ? null : FloatingActionButton(
         backgroundColor: _getFabColor(),
+        mini: true,
         onPressed: () {
-          if (_currentIndex == 0) {
+          // New order: 0 = Quỹ Dự Án, 1 = Tăng ca, 2 = Lãi nợ
+          if (_currentIndex == 1) {
+            // Tăng ca
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => AddEntryScreen(selectedMonth: _otSelectedMonth)),
             );
-          } else if (_currentIndex == 1) {
+          } else if (_currentIndex == 2) {
+            // Lãi nợ
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AddDebtScreen()),
             );
           } else {
+            // Quỹ Dự Án
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
@@ -106,6 +133,7 @@ class _MainScreenState extends State<MainScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       bottomNavigationBar: NavigationBar(
+        height: 70,
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
@@ -114,19 +142,24 @@ class _MainScreenState extends State<MainScreen> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.access_time_outlined),
-            selectedIcon: Icon(Icons.access_time_filled),
+            icon: Icon(Icons.savings_outlined, size: 20),
+            selectedIcon: Icon(Icons.savings, size: 20),
+            label: 'Quỹ Dự Án',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.access_time_outlined, size: 20),
+            selectedIcon: Icon(Icons.access_time_filled, size: 20),
             label: 'Tăng ca',
           ),
           NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
+            icon: Icon(Icons.account_balance_wallet_outlined, size: 20),
+            selectedIcon: Icon(Icons.account_balance_wallet, size: 20),
             label: 'Lãi nợ',
           ),
           NavigationDestination(
-            icon: Icon(Icons.savings_outlined),
-            selectedIcon: Icon(Icons.savings),
-            label: 'Quỹ Phòng',
+            icon: Icon(Icons.calculate_outlined, size: 20),
+            selectedIcon: Icon(Icons.calculate, size: 20),
+            label: 'Tính thuế',
           ),
         ],
       ),

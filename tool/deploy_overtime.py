@@ -21,18 +21,23 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
+import time
 
 # === CONFIGURATION ===
 PUBSPEC_PATH = 'pubspec.yaml'
 APK_PATH = 'build/app/outputs/flutter-apk/app-release.apk'
 RELEASE_NOTES_DIR = 'release_notes'
+UPDATE_SERVICE_PATH = 'lib/services/update_service.dart'
 
 # Google Drive Config
 DRIVE_CREDENTIALS_FILE = 'tool/credentials.json'
 DRIVE_TOKEN_FILE = 'tool/token.pickle'
 DRIVE_PARENT_FOLDER_ID = '1NjHCrZyZohQnRptgZL62G7LUTEFL66YY'  # Folder gốc trên Drive
 DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
-DRIVE_CHUNK_SIZE = 10 * 1024 * 1024  # 10MB chunks
+# Tăng chunk size lên 8MB để giảm số request và thường nhanh hơn trên kết nối ổn định
+DRIVE_CHUNK_SIZE = 8 * 1024 * 1024  # 8MB chunks
+MAX_UPLOAD_RETRIES = 5
+RETRY_BACKOFF_BASE = 2
 
 # === UTILS ===
 
@@ -45,6 +50,36 @@ def format_size(bytes):
             return f"{bytes:.1f}{unit}"
         bytes /= 1024
     return f"{bytes:.1f}TB"
+
+def update_metadata_file_id_in_code(file_id):
+    """Cập nhật METADATA_FILE_ID trong update_service.dart"""
+    if not os.path.exists(UPDATE_SERVICE_PATH):
+        log(f"[!] Khong tim thay file {UPDATE_SERVICE_PATH}")
+        return False
+    
+    try:
+        with open(UPDATE_SERVICE_PATH, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Tìm và thay thế METADATA_FILE_ID
+        import re
+        old_pattern = r"static const String METADATA_FILE_ID = '[^']*';"
+        new_value = f"static const String METADATA_FILE_ID = '{file_id}';"
+        
+        if re.search(old_pattern, content):
+            new_content = re.sub(old_pattern, new_value, content)
+            
+            with open(UPDATE_SERVICE_PATH, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            
+            log(f"[OK] Da cap nhat METADATA_FILE_ID = '{file_id}' trong update_service.dart")
+            return True
+        else:
+            log(f"[!] Khong tim thay METADATA_FILE_ID trong {UPDATE_SERVICE_PATH}")
+            return False
+    except Exception as e:
+        log(f"[X] Loi khi cap nhat METADATA_FILE_ID: {e}")
+        return False
 
 def get_version():
     """Lấy version từ pubspec.yaml"""
@@ -72,12 +107,12 @@ def get_release_notes(version):
     # Tạo README mặc định
     return f"""# OverTime v{version}
 
-## 📱 Thông tin phiên bản
+## Thong tin phien ban
 - **Version:** {version}
 - **Build:** {get_version_code()}
 - **Ngày phát hành:** {datetime.now().strftime('%d/%m/%Y')}
 
-## ✨ Tính năng mới
+## Tinh nang moi
 - Cải thiện hiệu suất và ổn định
 - Sửa lỗi nhỏ
 
@@ -92,7 +127,7 @@ _Phát hành tự động bởi hệ thống build_
 
 def build_apk():
     """Build APK release"""
-    log("\n🔨 Building APK...")
+    log("\n[+] Building APK...")
     try:
         subprocess.run(['flutter', 'clean'], check=True)
         result = subprocess.run(
@@ -102,10 +137,10 @@ def build_apk():
         )
         if result.returncode != 0:
             raise Exception(f"Build failed: {result.stderr}")
-        log("✅ Build thành công!")
+        log("[OK] Build thanh cong!")
         return True
     except Exception as e:
-        log(f"❌ Build error: {e}")
+        log(f"[X] Build error: {e}")
         return False
 
 # === GOOGLE DRIVE FUNCTIONS ===
@@ -140,7 +175,7 @@ def find_or_create_folder(service, folder_name, parent_id):
     
     if files:
         folder_id = files[0]['id']
-        log(f"✓ Thư mục '{folder_name}' đã tồn tại (ID: {folder_id})")
+        log(f"[i] Thu muc '{folder_name}' da ton tai (ID: {folder_id})")
         return folder_id
     else:
         meta = {
@@ -150,7 +185,7 @@ def find_or_create_folder(service, folder_name, parent_id):
         }
         folder = service.files().create(body=meta, fields='id').execute()
         folder_id = folder.get('id')
-        log(f"✅ Đã tạo thư mục '{folder_name}' (ID: {folder_id})")
+        log(f"[OK] Da tao thu muc '{folder_name}' (ID: {folder_id})")
         return folder_id
 
 def upload_file(service, file_path, file_name, folder_id, mimetype=None):
@@ -168,12 +203,12 @@ def upload_file(service, file_path, file_name, folder_id, mimetype=None):
         
         # Nếu là metadata file thì update content
         if file_name == 'latest_metadata.json':
-            log(f"🔄 Updating existing file '{file_name}' (ID: {file_id})...")
+            log(f"[+] Updating existing file '{file_name}' (ID: {file_id})...")
             
             media = MediaFileUpload(
                 file_path,
                 mimetype=mimetype,
-                resumable=True,
+                resumable=False,  # Disable resumable for small metadata files to prevent corruption
                 chunksize=DRIVE_CHUNK_SIZE
             )
             
@@ -182,15 +217,15 @@ def upload_file(service, file_path, file_name, folder_id, mimetype=None):
                 media_body=media
             ).execute()
             
-            log(f"✅ Update thành công!")
+            log(f"[OK] Update thanh cong!")
             return file_id
             
-        log(f"✓ File '{file_name}' đã tồn tại, bỏ qua upload")
+        log(f"[i] File '{file_name}' da ton tai, bo qua upload")
         return file_id
     
     # Upload file mới
     file_size = os.path.getsize(file_path)
-    log(f"📤 Uploading {file_name} ({format_size(file_size)})...")
+    log(f"[+] Uploading {file_name} ({format_size(file_size)})...")
     
     meta = {'name': file_name, 'parents': [folder_id]}
     if mimetype is None:
@@ -201,24 +236,49 @@ def upload_file(service, file_path, file_name, folder_id, mimetype=None):
         elif file_path.endswith('.json'):
             mimetype = 'application/json'
     
+    # Use resumable only for large files (like APK)
+    is_resumable = False # Disable resumable to avoid 'NoneType' object has no attribute 'size' error
+    
     media = MediaFileUpload(
         file_path,
         mimetype=mimetype,
-        resumable=True,
+        resumable=is_resumable,
         chunksize=DRIVE_CHUNK_SIZE
     )
     
     request = service.files().create(body=meta, media_body=media, fields='id')
-    response = None
     
-    while response is None:
-        status, response = request.next_chunk()
-        if status:
-            progress = int(status.progress() * 100)
-            log(f"  ⏳ Progress: {progress}%")
+    if not is_resumable:
+        response = request.execute()
+    else:
+        response = None
+        retry_count = 0
+        while response is None:
+            try:
+                status, response = request.next_chunk()
+                if status:
+                    progress = int(status.progress() * 100)
+                    log(f"  Progress: {progress}%")
+                    retry_count = 0
+            except HttpError as e:
+                retry_count += 1
+                if retry_count > MAX_UPLOAD_RETRIES:
+                    raise
+                sleep_for = RETRY_BACKOFF_BASE ** retry_count
+                log(f"[!] HttpError during upload: {e}. Retry {retry_count}/{MAX_UPLOAD_RETRIES} after {sleep_for}s")
+                time.sleep(sleep_for)
+                continue
+            except Exception as e:
+                retry_count += 1
+                if retry_count > MAX_UPLOAD_RETRIES:
+                    raise
+                sleep_for = RETRY_BACKOFF_BASE ** retry_count
+                log(f"[!] Error during upload: {e}. Retry {retry_count}/{MAX_UPLOAD_RETRIES} after {sleep_for}s")
+                time.sleep(sleep_for)
+                continue
     
     file_id = response.get('id')
-    log(f"✅ Upload thành công! (ID: {file_id})")
+    log(f"[OK] Upload thanh cong! (ID: {file_id})")
     return file_id
 
 def set_file_public(service, file_id):
@@ -228,9 +288,9 @@ def set_file_public(service, file_id):
             fileId=file_id,
             body={'type': 'anyone', 'role': 'reader'}
         ).execute()
-        log(f"✅ Đã đặt quyền public cho file (ID: {file_id})")
+        log(f"[OK] Da dat quyen public cho file (ID: {file_id})")
     except Exception as e:
-        log(f"⚠️ Không thể đặt quyền public: {e}")
+        log(f"[!] Khong the dat quyen public: {e}")
 
 def create_metadata_json(version, version_code, apk_file_id, release_notes):
     """Tạo file metadata.json"""
@@ -247,7 +307,7 @@ def create_metadata_json(version, version_code, apk_file_id, release_notes):
 def upload_to_drive(version):
     """Upload APK và các file liên quan lên Drive"""
     try:
-        log("\n🚀 Kết nối Google Drive...")
+        log("\n[+] Ket noi Google Drive...")
         service = get_drive_service()
         
         # Tạo hoặc tìm thư mục version
@@ -256,7 +316,9 @@ def upload_to_drive(version):
         )
         
         # Upload APK
-        apk_name = f'overtime_{version}.apk'
+        import time
+        timestamp = str(int(time.time()))
+        apk_name = f'overtime_{version}_{timestamp}.apk'
         apk_file_id = upload_file(
             service, APK_PATH, apk_name, version_folder_id
         )
@@ -278,6 +340,12 @@ def upload_to_drive(version):
         metadata_content = create_metadata_json(
             version, get_version_code(), apk_file_id, release_notes
         )
+        # Verify JSON content before saving and uploading
+        try:
+            json.loads(metadata_content)
+        except Exception as e:
+            raise Exception(f"Generated metadata is not valid JSON: {e}")
+
         metadata_path = f'tool/temp_metadata_{version}.json'
         with open(metadata_path, 'w', encoding='utf-8') as f:
             f.write(metadata_content)
@@ -293,6 +361,9 @@ def upload_to_drive(version):
         )
         set_file_public(service, root_metadata_file_id)
         
+        # Tự động cập nhật METADATA_FILE_ID trong code app
+        update_metadata_file_id_in_code(root_metadata_file_id)
+        
         # Cleanup temp files
         if os.path.exists(readme_path):
             os.remove(readme_path)
@@ -300,12 +371,17 @@ def upload_to_drive(version):
             os.remove(metadata_path)
         
         log("\n" + "="*60)
-        log("🎉 HOÀN TẤT!")
+        log("HOAN TAT!")
         log("="*60)
-        log(f"📱 Version: {version}")
-        log(f"🔗 APK Download: {apk_download_url}")
-        log(f"📁 Folder Drive: https://drive.google.com/drive/folders/{version_folder_id}")
-        log(f"📄 Metadata: https://drive.google.com/uc?export=download&id={root_metadata_file_id}")
+        log(f"Version: {version}")
+        log(f"APK Download: {apk_download_url}")
+        log(f"Folder Drive: https://drive.google.com/drive/folders/{version_folder_id}")
+        log(f"Metadata ID: {root_metadata_file_id}")
+        log(f"Metadata URL: https://drive.google.com/uc?export=download&id={root_metadata_file_id}")
+        log("="*60)
+        log("\n[!] LUU Y: METADATA_FILE_ID da duoc tu dong cap nhat trong update_service.dart")
+        log("   Ban can BUILD LAI APK va DEPLOY lai de app co the tu dong check update!")
+        log("   Hoac giu nguyen File ID nay cho cac lan deploy sau.")
         log("="*60)
         
         return {
@@ -316,7 +392,7 @@ def upload_to_drive(version):
         }
         
     except Exception as e:
-        log(f"\n❌ Lỗi: {e}")
+        log(f"\n[X] Loi: {e}")
         import traceback
         traceback.print_exc()
         return {'success': False, 'error': str(e)}
@@ -325,30 +401,33 @@ def upload_to_drive(version):
 
 def main():
     print("="*60)
-    print("🚀 OVER TIME - DEPLOY TO GOOGLE DRIVE")
+    print("OVER TIME - DEPLOY TO GOOGLE DRIVE")
     print("="*60)
-    
+
     version = get_version()
     version_code = get_version_code()
-    print(f"📌 Version: {version} (Build: {version_code})")
-    
+    print(f"[i] Version: {version} (Build: {version_code})")
+
+    # Tự động build APK nếu chưa có
     if not os.path.exists(APK_PATH):
-        print(f"\n⚠️ APK chưa được build tại: {APK_PATH}")
-        build_apk_choice = input("Bạn có muốn build APK ngay bây giờ? (y/n): ")
-        if build_apk_choice.lower() == 'y':
-            if not build_apk():
-                print("❌ Build thất bại!")
-                return
-        else:
-            print("❌ Không thể tiếp tục mà không có APK!")
+        print(f"\n[!] APK chua duoc build tai: {APK_PATH}")
+        print("[+] Tu dong build APK...")
+        if not build_apk():
+            print("[X] Build that bai!")
             return
-    
+
     result = upload_to_drive(version)
-    
+
     if result['success']:
-        print("\n✅ Deploy thành công!")
+        print("\n[OK] Deploy thanh cong!")
+        print("\n" + "="*60)
+        print("APP CUA BAN SE TU DONG CHECK UPDATE!")
+        print("="*60)
+        print("Tu bay gio, app se tu dong phat hien phien ban moi")
+        print("Nguoi dung chi can mo app va nhan 'Kiem tra cap nhat'")
+        print("="*60)
     else:
-        print(f"\n❌ Deploy thất bại: {result.get('error', 'Unknown error')}")
+        print(f"\n[X] Deploy that bai: {result.get('error', 'Unknown error')}")
         sys.exit(1)
 
 if __name__ == '__main__':

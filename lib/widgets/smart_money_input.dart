@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+import 'dart:math';
 
 class SmartMoneyInput extends StatefulWidget {
   final TextEditingController controller;
@@ -23,6 +25,9 @@ class SmartMoneyInput extends StatefulWidget {
 
 class _SmartMoneyInputState extends State<SmartMoneyInput> {
   List<double> _suggestions = [];
+  int _lastInputLength = 0;
+  int? _lastBase;
+  double _lastLargest = 0;
 
   @override
   void initState() {
@@ -39,10 +44,35 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
   void _onTextChanged() {
     final text = widget.controller.text.replaceAll(RegExp(r'[^0-9]'), '');
     
-    // 1. Update suggestions first to ensure UI is ready
+    // 1. Parse base early and decide prevLargest behavior (reset when input shrinks)
+    final cleanInput = text;
+    final currentLen = cleanInput.length;
+    final base = int.tryParse(cleanInput) ?? 0;
+    // detect appended char when user types
+    String? appendedChar;
+    if (currentLen > _lastInputLength && cleanInput.isNotEmpty) {
+      appendedChar = cleanInput.substring(cleanInput.length - 1);
+    }
+
+    double prevLargest = 0;
+    bool allowEscalation = true;
+    // If user deleted characters or reduced the base, reset prevLargest to allow smaller suggestions again
+    if (currentLen < _lastInputLength || (base > 0 && _lastBase != null && base < _lastBase!)) {
+      prevLargest = 0;
+      // on deletion or when base decreased, do not escalate automatically
+      allowEscalation = false;
+    } else {
+      prevLargest = _lastLargest;
+      // Only allow escalation when user appended a zero or no previous largest (initial)
+      if (appendedChar != null && appendedChar != '0') {
+        allowEscalation = false;
+      }
+    }
+
+    // Update suggestions first to ensure UI is ready
     List<double> newSuggestions = [];
-    if (text.isNotEmpty && text.length <= 3) {
-      newSuggestions = _generateSuggestions(text);
+    if (text.isNotEmpty && text.length <= 6) {
+      newSuggestions = _generateSuggestions(text, prevLargest, allowEscalation);
     }
     
     if (_suggestions.toString() != newSuggestions.toString()) {
@@ -77,6 +107,11 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
         widget.onChanged!(number);
       }
     }
+
+    // update last trackers
+    _lastInputLength = currentLen;
+    _lastBase = base == 0 ? null : base;
+    _lastLargest = (_suggestions.isNotEmpty ? _suggestions.last : 0.0);
   }
 
   void _selectSuggestion(double value) {
@@ -91,75 +126,80 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
     setState(() => _suggestions = []);
   }
 
-  List<double> _generateSuggestions(String input) {
+  List<double> _generateSuggestions(String input, [double prevLargest = 0, bool allowEscalation = true]) {
     final cleanInput = input.replaceAll(',', '').replaceAll('.', '');
-    final number = double.tryParse(cleanInput);
-    if (number == null || number == 0) return [];
+    final base = int.tryParse(cleanInput);
+    if (base == null || base == 0) return [];
+
+    // Determine number of digits
+    final digits = base.toString().length;
+
+    int exp;
+    if (digits == 1) {
+      exp = 4; // e.g. 5 -> 50.000
+    } else if (digits == 2) {
+      exp = 3; // e.g. 18 -> 18.000
+    } else if (digits == 3) {
+      exp = 3; // keep same behavior for 3-digit base (180->180.000)
+    } else {
+      exp = 1; // for >=4 digits, shift minimally (5236 -> 52.360)
+    }
 
     final suggestions = <double>[];
-    
-    // Multipliers to cover all cases from 100k to Billions
-    final multipliers = [1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000];
-    
-    for (var m in multipliers) {
-      final val = number * m;
-      if (val >= 100000) { // Only suggest 100k and above
-        suggestions.add(val);
+    // Generate suggestions and ensure they do not decrease compared to previous largest
+    // If escalation is not allowed, produce a single set based on current exp.
+    if (allowEscalation) {
+      for (;;) {
+        suggestions.clear();
+        for (int i = 0; i < 3; i++) {
+          final val = base * pow(10, exp + i);
+          suggestions.add(val.toDouble());
+        }
+        suggestions.sort();
+        if (prevLargest <= 0 || suggestions.last > prevLargest) {
+          break;
+        }
+        exp += 1;
+        // guard
+        if (exp > 12) break;
+      }
+    } else {
+      // single generation without escalating exp
+      // If user appended non-zero digit, shift one step lower for the first suggestion
+      int startExp = exp;
+      if (startExp > 0) startExp = exp - 1;
+      for (int i = 0; i < 3; i++) {
+        final val = base * pow(10, startExp + i);
+        suggestions.add(val.toDouble());
       }
     }
 
-    // Sort and remove duplicates, limit to 6 suggestions
-    return suggestions.toSet().toList()..sort();
+    // Ensure unique and sorted ascending
+    final unique = suggestions.toSet().toList()..sort();
+    return unique;
   }
 
-  String _formatCompact(double number) {
-    if (number >= 1000000000) {
-      return '${(number / 1000000000).toStringAsFixed(1).replaceAll('.0', '')} Tỷ';
-    } else if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1).replaceAll('.0', '')} Tr';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(0)}k';
+  String _formatCurrencyLabel(double number) {
+    try {
+      return '${NumberFormat.decimalPattern('vi_VN').format(number)} đ';
+    } catch (_) {
+      return '${number.toStringAsFixed(0)} đ';
     }
-    return number.toStringAsFixed(0);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Limit suggestions to top 3 highest values for display
+    final displaySuggestions = (_suggestions.toList()..sort((a, b) => a.compareTo(b))).take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Suggestions shown ABOVE the TextField
-        if (_suggestions.isNotEmpty) ...[
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _suggestions.map((value) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ActionChip(
-                    backgroundColor: Colors.blue.shade100,
-                    side: BorderSide(color: Colors.blue.shade300),
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    label: Text(
-                      _formatCompact(value),
-                      style: TextStyle(
-                        color: Colors.blue.shade900,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    onPressed: () => _selectSuggestion(value),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
         TextField(
           controller: widget.controller,
           keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: widget.style ?? TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -177,6 +217,36 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
             ),
           ),
         ),
+
+        // Suggestions shown BELOW the TextField as pill buttons
+        if (displaySuggestions.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: displaySuggestions.map((value) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                    onPressed: () => _selectSuggestion(value),
+                    child: Text(
+                      _formatCurrencyLabel(value),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ],
     );
   }

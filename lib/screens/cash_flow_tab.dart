@@ -127,8 +127,8 @@ class _CashFlowTabState extends State<CashFlowTab> {
   Widget _buildSummaryCard(BuildContext context, double balance, double income, double expense, NumberFormat format) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.teal.shade600, Colors.teal.shade800, Colors.teal.shade900],
@@ -160,7 +160,7 @@ class _CashFlowTabState extends State<CashFlowTab> {
             format.format(balance),
             style: TextStyle(
               color: balance >= 0 ? Colors.greenAccent : Colors.redAccent,
-              fontSize: 32,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -218,13 +218,13 @@ class _CashFlowTabState extends State<CashFlowTab> {
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               // Icon
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: isIncome ? Colors.green.shade50 : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(12),

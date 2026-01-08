@@ -52,13 +52,29 @@ def get_access_token():
         with open(TOKEN_FILE, 'wb') as token:
             pickle.dump(creds, token)
     
-    print("="*60)
-    print("✅ ACCESS TOKEN:")
-    print("="*60)
-    print(creds.token)
-    print("="*60)
-    print("\n📋 Copy token này và dán vào app trong Settings > Cấu hình Google Sheets")
-    print("="*60)
+    # Simple print for easy copying
+    print("---START_CREDENTIALS---")
+    print(f"ACCESS TOKEN: {creds.token}")
+    
+    refresh = getattr(creds, 'refresh_token', None)
+    if refresh:
+        print(f"REFRESH TOKEN: {refresh}")
+
+    try:
+        import json
+        if os.path.exists(CREDENTIALS_FILE):
+            with open(CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                clients = data.get('installed') or data.get('web') or {}
+                client_id = clients.get('client_id')
+                client_secret = clients.get('client_secret')
+                if client_id:
+                    print(f"CLIENT ID: {client_id}")
+                if client_secret:
+                    print(f"CLIENT SECRET: {client_secret}")
+    except Exception:
+        pass
+    print("---END_CREDENTIALS---")
     
     return creds.token
 

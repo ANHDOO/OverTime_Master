@@ -140,6 +140,16 @@ class StorageService {
     await db.delete('overtime');
   }
 
+  /// Close and clear cached database instance.
+  Future<void> closeDatabase() async {
+    if (_database != null) {
+      try {
+        await _database!.close();
+      } catch (_) {}
+      _database = null;
+    }
+  }
+
   // Debt Entry methods
   Future<int> insertDebtEntry(DebtEntry entry) async {
     final db = await database;

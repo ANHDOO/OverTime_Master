@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/overtime_provider.dart';
 import '../widgets/smart_money_input.dart';
 import '../services/update_service.dart';
 import '../services/notification_service.dart';
 import '../services/google_sheets_service.dart';
+import 'settings/update_screen.dart';
+import 'settings/notifications_screen.dart';
+import 'settings/google_sheets_screen.dart';
+import 'settings/backup_screen.dart';
+import 'settings/smart_notifications_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -148,81 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Divider(),
-                const SizedBox(height: 16),
-                _buildSectionTitle('Thông tin ứng dụng'),
-                const SizedBox(height: 12),
-                FutureBuilder<PackageInfo>(
-                  future: PackageInfo.fromPlatform(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      final info = snapshot.data!;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildInfoRow('Phiên bản', info.version),
-                          _buildInfoRow('Build', info.buildNumber),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () => _checkForUpdate(context),
-                              icon: const Icon(Icons.system_update),
-                              label: const Text('Kiểm tra cập nhật'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () => _testNotifications(context),
-                              icon: const Icon(Icons.notifications_active),
-                              label: const Text('Test thông báo (2 phút)'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                foregroundColor: Colors.orange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 16),
-                          _buildSectionTitle('Đồng bộ Google Sheets'),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showGoogleSheetsSettings(context, provider),
-                              icon: const Icon(Icons.cloud_sync),
-                              label: const Text('Cấu hình Google Sheets'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                foregroundColor: Colors.blue,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _syncToSheets(context, provider),
-                              icon: const Icon(Icons.sync),
-                              label: const Text('Đồng bộ tất cả dự án'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                backgroundColor: Colors.teal,
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                    return const CircularProgressIndicator();
-                  },
-                ),
+                // Removed non-salary settings per user request.
               ],
             ),
           );
@@ -419,28 +351,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _checkForUpdate(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    // Hiển thị loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
     try {
       final updateService = UpdateService();
-      final updateInfo = await updateService.checkForUpdate();
+      final result = await updateService.checkForUpdate();
       
-      if (!context.mounted) return;
+      navigator.pop(); // Đóng loading dialog
       
-      if (updateInfo != null) {
-        final shouldUpdate = await updateService.showUpdateDialog(context, updateInfo);
+      if (result.hasUpdate && result.updateInfo != null) {
+        // Có bản cập nhật mới
+        final shouldUpdate = await updateService.showUpdateDialog(context, result.updateInfo!);
         if (shouldUpdate == true && context.mounted) {
-          await updateService.downloadAndInstall(updateInfo.downloadUrl, context);
+          await updateService.downloadAndInstall(result.updateInfo!.downloadUrl, context);
         }
-      } else {
+      } else if (result.error != null) {
+        // Có lỗi xảy ra
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bạn đang sử dụng phiên bản mới nhất!')),
+            SnackBar(
+              content: Text('Lỗi: ${result.error}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        // Không có bản mới
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bạn đang sử dụng phiên bản mới nhất!'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
     } catch (e) {
       if (context.mounted) {
+        Navigator.of(context).pop(); // Đóng loading dialog nếu có
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi khi kiểm tra cập nhật: $e')),
+          SnackBar(
+            content: Text('Lỗi khi kiểm tra cập nhật: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }
@@ -493,8 +456,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showGoogleSheetsSettings(BuildContext context, OvertimeProvider provider) async {
     final sheetsService = GoogleSheetsService();
+    final prefs = await SharedPreferences.getInstance();
     final currentToken = await sheetsService.getAccessToken();
     final tokenController = TextEditingController(text: currentToken ?? '');
+    final refreshController = TextEditingController(text: prefs.getString('google_sheets_refresh_token') ?? '');
+    final clientController = TextEditingController(text: prefs.getString('google_sheets_client_id') ?? '');
     
     showDialog(
       context: context,
@@ -540,6 +506,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 maxLines: 1,
               ),
               const SizedBox(height: 8),
+              TextField(
+                controller: refreshController,
+                decoration: const InputDecoration(
+                  labelText: 'Refresh Token (optional)',
+                  hintText: '1//0g... (refresh token)',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: clientController,
+                decoration: const InputDecoration(
+                  labelText: 'OAuth Client ID (optional)',
+                  hintText: 'xxxxxxxxxx-xxxxxxxxxx.apps.googleusercontent.com',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 1,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    // Mở hướng dẫn chi tiết
+                  },
+                  icon: const Icon(Icons.info_outline, size: 16),
+                  label: const Text('Hướng dẫn lấy Refresh Token / Client ID'),
+                ),
+              ),
               TextButton.icon(
                 onPressed: () {
                   // Mở link hướng dẫn
@@ -558,17 +555,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             onPressed: () async {
               final token = tokenController.text.trim();
+              final refresh = refreshController.text.trim();
+              final clientId = clientController.text.trim();
               if (token.isNotEmpty) {
                 await sheetsService.setAccessToken(token);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Đã lưu Access Token!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+              }
+              if (refresh.isNotEmpty) {
+                await sheetsService.setRefreshToken(refresh);
+              }
+              if (clientId.isNotEmpty) {
+                await sheetsService.setClientId(clientId);
+              }
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Đã lưu cấu hình Google Sheets!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
             },
             child: const Text('Lưu'),
