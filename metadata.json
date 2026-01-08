@@ -1,8 +1,8 @@
 {
   "versionName": "1.0.2",
-  "versionCode": 1,
+  "versionCode": 2,
   "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.2/overtime_1.0.2.apk",
   "changelog": "# OverTime v1.0.2\n\n## 📱 Thông tin phiên bản\n- **Version:** 1.0.2\n- **Build:** 3\n- **Ngày phát hành:** 06/01/2026\n\n## ✨ Tính năng mới\n- Hệ thống tự động kiểm tra và cài đặt bản cập nhật\n- Cải thiện hiệu suất và ổn định ứng dụng\n- Tối ưu hóa giao diện người dùng\n\n## 🐛 Sửa lỗi\n- Sửa lỗi nhỏ trong tính toán lương tăng ca\n- Cải thiện xử lý dữ liệu\n\n## 📥 Hướng dẫn cài đặt\n1. Tải file APK về thiết bị Android\n2. Cho phép cài đặt từ nguồn không xác định trong Settings\n3. Mở file APK và cài đặt\n\n---\n_Phát...",
-  "publishedAt": "2026-01-08T23:52:59.627868Z",
+  "publishedAt": "2026-01-09T00:22:06.590116Z",
   "fileSize": "20.8MB"
 }
