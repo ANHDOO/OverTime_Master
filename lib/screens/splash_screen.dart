@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'main_screen.dart';
+import 'lock_screen.dart';
 import '../services/notification_service.dart';
 import '../services/update_service.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -54,8 +56,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
     });
 
-    // Check for updates (delay 3s để app load xong rồi mới hiện dialog)
-    Future.delayed(const Duration(milliseconds: 3000), () async {
+    // Check for updates (delay 5s để app load xong rồi mới hiện dialog)
+    Future.delayed(const Duration(milliseconds: 5000), () async {
       if (!mounted) return;
       try {
         final updateService = UpdateService();
@@ -79,8 +81,38 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
     });
 
-    Future.delayed(const Duration(milliseconds: 2000), () {
-      if (mounted) {
+    // Navigate after splash animation - check for app lock
+    Future.delayed(const Duration(milliseconds: 2000), () async {
+      if (!mounted) return;
+      
+      final authService = AuthService();
+      final isLockEnabled = await authService.isLockEnabled();
+      
+      if (!mounted) return;
+      
+      if (isLockEnabled) {
+        // Show lock screen first
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LockScreen(
+              onUnlocked: () {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => const MainScreen(),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    transitionDuration: const Duration(milliseconds: 500),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        // Go directly to main screen
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(

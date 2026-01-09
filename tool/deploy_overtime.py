@@ -258,17 +258,9 @@ def main():
     version_code = get_version_code()
     print(f"[i] Version: {version} (Build: {version_code})")
 
-    # Tự động build APK nếu chưa có
-    if not os.path.exists(APK_PATH):
-        if not build_apk():
-            sys.exit(1)
-    else:
-        # Hoi xem co muon build lai khong
-        log(f"[i] Tim thay file APK tai: {APK_PATH}")
-        choice = input("[?] Ban co muon build lai APK moi khong? (y/N): ")
-        if choice.lower() == 'y':
-            if not build_apk():
-                sys.exit(1)
+    # Luôn build APK mới để đảm bảo code mới nhất được đóng gói
+    if not build_apk():
+        sys.exit(1)
 
     release_notes = get_release_notes(version)
     github_apk_url = deploy_to_github(version, APK_PATH, release_notes)

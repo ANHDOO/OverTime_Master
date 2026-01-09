@@ -207,6 +207,7 @@ class BackupService {
         q: query,
         orderBy: 'createdTime desc',
         pageSize: 20,
+        $fields: 'files(id, name, createdTime, size)',
       );
 
       return files.files?.map((file) {

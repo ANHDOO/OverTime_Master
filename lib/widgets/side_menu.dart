@@ -6,7 +6,7 @@ import '../screens/settings_screen.dart';
 import '../screens/settings/google_sheets_screen.dart';
 import '../screens/settings/backup_screen.dart';
 import '../screens/settings/notifications_screen.dart';
-import '../screens/settings/notifications_screen.dart';
+import '../screens/settings/security_screen.dart';
 import '../screens/settings/update_screen.dart';
 import '../services/update_service.dart';
 import 'package:provider/provider.dart';
@@ -97,6 +97,10 @@ class SideMenu extends StatelessWidget {
                     _buildNavItem(context, icon: Icons.cloud_sync, label: 'Google Sheets', onTap: () {
                       Navigator.pop(context);
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const GoogleSheetsScreen()));
+                    }),
+                    _buildNavItem(context, icon: Icons.security, label: 'Bảo mật', onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityScreen()));
                     }),
                     AnimatedBuilder(
                       animation: UpdateService(),
