@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/custom_time_picker.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -53,32 +54,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await CustomTimePicker.show(
+      context,
       initialTime: TimeOfDay(hour: _selectedHour, minute: _selectedMinute),
-      initialEntryMode: TimePickerEntryMode.input,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            timePickerTheme: TimePickerThemeData(
-              backgroundColor: Colors.white,
-              hourMinuteColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-              hourMinuteTextColor: Theme.of(context).colorScheme.primary,
-              dialHandColor: Theme.of(context).colorScheme.primary,
-              dialBackgroundColor: Colors.grey.shade100,
-              entryModeIconColor: Theme.of(context).colorScheme.primary,
-              hourMinuteTextStyle: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
-            ),
-          ),
-          child: MediaQuery(
-            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-            child: child!,
-          ),
-        );
-      },
+      title: 'Giờ nhắc nhở',
+      secondaryButtonText: 'Hủy',
     );
     if (picked != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -98,6 +78,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
         }
       }
+    }
+  }
+
+  Future<void> _scheduleTestNotification() async {
+    final service = NotificationService();
+    await service.scheduleDailyNotification(testMode: true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã đặt lịch nhắc nhở sau 10 giây để kiểm tra 🚀'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
@@ -254,6 +247,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             
             const SizedBox(height: 24),
+            
+            // Test button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _scheduleTestNotification,
+                icon: const Icon(Icons.timer_outlined),
+                label: const Text('Thử nghiệm nhắc nhở (sau 10s)'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: theme.colorScheme.primary),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
             
             // Xiaomi warning
             Container(

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../providers/overtime_provider.dart';
 import '../models/overtime_entry.dart';
 import '../models/cash_transaction.dart';
+import '../services/excel_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -41,6 +42,97 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
     return ['Tất cả', ...projects];
   }
 
+  void _showExportDialog(BuildContext context) {
+    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    
+    // Lấy danh sách các tháng có dữ liệu
+    final monthsWithData = <DateTime>{};
+    for (final entry in provider.entries) {
+      monthsWithData.add(DateTime(entry.date.year, entry.date.month));
+    }
+    final sortedMonths = monthsWithData.toList()..sort((a, b) => b.compareTo(a));
+    
+    if (sortedMonths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có dữ liệu tăng ca để xuất')),
+      );
+      return;
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.file_download, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                const Text(
+                  'Xuất Excel cho kế toán',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Chọn tháng cần xuất báo cáo (không tính tiền)',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                itemCount: sortedMonths.length,
+                itemBuilder: (context, index) {
+                  final month = sortedMonths[index];
+                  final entriesCount = provider.entries.where((e) => 
+                    e.date.month == month.month && e.date.year == month.year
+                  ).length;
+                  
+                  return ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.calendar_month,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    title: Text(
+                      'Tháng ${month.month}/${month.year}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text('$entriesCount ngày làm tăng ca'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ExcelService.exportOvertimeForAccounting(
+                        context: context,
+                        entries: provider.entries,
+                        month: month.month,
+                        year: month.year,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
@@ -48,6 +140,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
     return Scaffold(
       appBar: AppBar(
         title: const Text('Thống kê'),
+        actions: [
+          // Export Excel button (only show on OT tab)
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Xuất Excel cho kế toán',
+            onPressed: () => _showExportDialog(context),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           // Ensure selected/unselected labels and icons remain visible against AppBar background

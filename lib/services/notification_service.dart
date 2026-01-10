@@ -4,9 +4,6 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/overtime_entry.dart';
-import '../models/debt_entry.dart';
-import '../models/cash_transaction.dart';
 import 'background_notification_service.dart';
 
 class NotificationService {
@@ -88,15 +85,6 @@ class NotificationService {
     return iosGranted;
   }
   
-  Future<bool> _canScheduleExactAlarms() async {
-    try {
-      final status = await Permission.scheduleExactAlarm.status;
-      return status.isGranted;
-    } catch (e) {
-      debugPrint('Error checking exact alarm permission: $e');
-      return false;
-    }
-  }
 
   Future<void> scheduleDailyNotification({bool testMode = false}) async {
     // Hủy tất cả notification cũ trước khi schedule mới
@@ -115,28 +103,34 @@ class NotificationService {
     tz.TZDateTime scheduledTime;
     
     if (testMode) {
-      // Sử dụng Workmanager cho test mode vì nó ổn định hơn trên MIUI
-      debugPrint('TEST MODE: Scheduling notification via Workmanager in 10 seconds');
-      await BackgroundNotificationService.scheduleOneTimeReminder(
-        const Duration(seconds: 10),
-        'Nhắc nhở hằng ngày (Test)',
-        'Cập nhật OT và chi tiêu hôm nay nha!',
-      );
-      return;
+      // Test mode: schedule 10 seconds from now
+      debugPrint('TEST MODE: Scheduling notification in 10 seconds');
+      scheduledTime = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10));
     } else {
-      // Production: schedule lúc 22:00 (10 PM)
-      scheduledTime = _nextInstanceOfTime(22, 0);
+      // Lấy giờ từ SharedPreferences, mặc định là 22:00
+      final prefs = await SharedPreferences.getInstance();
+      final hour = prefs.getInt('notification_hour') ?? 22;
+      final minute = prefs.getInt('notification_minute') ?? 0;
+      final isEnabled = prefs.getBool('notification_enabled') ?? true;
+      
+      if (!isEnabled) {
+        debugPrint('Notifications are disabled in settings. Skipping schedule.');
+        await cancelAll();
+        return;
+      }
+      
+      scheduledTime = _nextInstanceOfTime(hour, minute);
     }
     
     debugPrint('Scheduling daily notification for: $scheduledTime');
     debugPrint('Android Schedule Mode: $scheduleMode');
     debugPrint('Match DateTime Components: ${testMode ? "None" : "Time"}');
     
-    // Schedule notification gộp chung
+    // Schedule notification using AlarmManager (zonedSchedule)
     await flutterLocalNotificationsPlugin.zonedSchedule(
       1001, // Sử dụng ID khác 0
-      'Nhắc nhở hằng ngày',
-      'Cập nhật OT và chi tiêu hôm nay nha!',
+      'Anh Đô ơi! 💼',
+      'Hôm nay làm OT không? Nhớ ghi lại công việc và chi tiêu nha! 📝✨',
       scheduledTime,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -163,6 +157,16 @@ class NotificationService {
     
     debugPrint('✅ Notification scheduled successfully!');
     debugPrint('Notification ID: 1001, scheduled at: $scheduledTime');
+  }
+  
+  Future<bool> _canScheduleExactAlarms() async {
+    try {
+      final status = await Permission.scheduleExactAlarm.status;
+      return status.isGranted;
+    } catch (e) {
+      debugPrint('Error checking exact alarm permission: $e');
+      return false;
+    }
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
@@ -227,6 +231,7 @@ class NotificationService {
   
   Future<void> cancelAll() async {
     await flutterLocalNotificationsPlugin.cancelAll();
+    await BackgroundNotificationService.cancelAll();
   }
 
 }

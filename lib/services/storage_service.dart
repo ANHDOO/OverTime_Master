@@ -1,5 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import '../models/overtime_entry.dart';
 import '../models/debt_entry.dart';
 import '../models/cash_transaction.dart';
@@ -208,5 +211,55 @@ class StorageService {
       where: 'id = ?',
       whereArgs: [transaction.id],
     );
+  }
+
+  /// Cleanup old files on first launch of a new version
+  /// Call this from main.dart or splash_screen.dart
+  static Future<void> performFirstLaunchCleanup() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastCleanupVersion = prefs.getString('last_cleanup_version') ?? '';
+      const currentVersion = '1.0.5'; // Should match app version
+      
+      if (lastCleanupVersion != currentVersion) {
+        // 1. Clear temp directory
+        final tempDir = await getTemporaryDirectory();
+        if (await tempDir.exists()) {
+          final files = tempDir.listSync();
+          for (var file in files) {
+            try {
+              await file.delete(recursive: true);
+            } catch (_) {}
+          }
+        }
+        
+        // 2. Clear old APK downloads
+        final appDocsDir = await getApplicationDocumentsDirectory();
+        final apkFiles = appDocsDir.listSync().where((f) => f.path.endsWith('.apk'));
+        for (var apk in apkFiles) {
+          try {
+            await apk.delete();
+          } catch (_) {}
+        }
+        
+        // 3. Clear old Excel exports (older than 7 days)
+        final excelFiles = appDocsDir.listSync().where((f) => f.path.endsWith('.xlsx'));
+        final oneWeekAgo = DateTime.now().subtract(const Duration(days: 7));
+        for (var excel in excelFiles) {
+          try {
+            final stat = await excel.stat();
+            if (stat.modified.isBefore(oneWeekAgo)) {
+              await excel.delete();
+            }
+          } catch (_) {}
+        }
+        
+        // Mark as cleaned
+        await prefs.setString('last_cleanup_version', currentVersion);
+        debugPrint('✅ First launch cleanup completed for version $currentVersion');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Cleanup error: $e');
+    }
   }
 }

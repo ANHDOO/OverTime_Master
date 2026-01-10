@@ -64,6 +64,28 @@ class BackupService {
     return await _googleSignIn?.isSignedIn() ?? false;
   }
 
+  // Silent sign in - restore previous session without UI
+  // This is fast and doesn't require user interaction
+  Future<bool> signInSilently() async {
+    try {
+      if (_googleSignIn == null) {
+        await initializeGoogleSignIn();
+      }
+      
+      final account = await _googleSignIn!.signInSilently();
+      if (account != null) {
+        final auth = await account.authentication;
+        final client = GoogleAuthClient(auth.accessToken!);
+        _driveApi = drive.DriveApi(client);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Silent sign in error: $e');
+      return false;
+    }
+  }
+
   // Get app folder ID (create if not exists)
   Future<String?> getOrCreateAppFolder() async {
     if (_appFolderId != null) return _appFolderId;

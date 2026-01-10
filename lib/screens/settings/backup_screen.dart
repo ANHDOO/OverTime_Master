@@ -15,6 +15,7 @@ class _BackupScreenState extends State<BackupScreen> {
   final BackupService _backupService = BackupService();
   bool _isSignedIn = false;
   bool _isLoading = false;
+  bool _isInitializing = true;
   List<Map<String, dynamic>> _backupList = [];
   Map<String, dynamic>? _lastBackupInfo;
   Map<String, dynamic>? _lastRestoreInfo;
@@ -26,17 +27,23 @@ class _BackupScreenState extends State<BackupScreen> {
   }
 
   Future<void> _initializeBackupService() async {
-    setState(() => _isLoading = true);
     try {
       await _backupService.initializeGoogleSignIn();
-      _isSignedIn = await _backupService.isSignedIn();
-      if (_isSignedIn) {
+      
+      // Try silent sign in first (fast, no UI)
+      final silentSuccess = await _backupService.signInSilently();
+      if (silentSuccess) {
+        _isSignedIn = true;
         await _loadBackupData();
+      } else {
+        _isSignedIn = false;
       }
     } catch (e) {
-      _showError('Lỗi khởi tạo: $e');
+      debugPrint('Backup init error: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isInitializing = false);
+      }
     }
   }
 
@@ -261,6 +268,23 @@ class _BackupScreenState extends State<BackupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show centered loading during initialization
+    if (_isInitializing) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Sao lưu & Khôi phục')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Đang kiểm tra đăng nhập...'),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sao lưu & Khôi phục'),

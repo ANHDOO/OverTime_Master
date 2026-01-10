@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/overtime_provider.dart';
+import '../widgets/custom_time_picker.dart';
 
 class AddEntryScreen extends StatefulWidget {
   final DateTime? selectedMonth;
@@ -131,9 +132,11 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   }
 
   Future<void> _selectStartTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
+    final TimeOfDay? picked = await CustomTimePicker.show(
+      context,
       initialTime: _startTime,
+      title: 'Giờ bắt đầu',
+      secondaryButtonText: 'Hủy',
     );
     if (picked != null) {
       setState(() => _startTime = picked);
@@ -141,9 +144,11 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   }
 
   Future<void> _selectEndTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
+    final TimeOfDay? picked = await CustomTimePicker.show(
+      context,
       initialTime: _endTime,
+      title: 'Giờ kết thúc',
+      secondaryButtonText: 'Hủy',
     );
     if (picked != null) {
       setState(() => _endTime = picked);
@@ -152,9 +157,11 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
 
   Future<void> _selectSlotTime(int index, bool isStart) async {
     final slot = _timeSlots[index];
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
+    final TimeOfDay? picked = await CustomTimePicker.show(
+      context,
       initialTime: isStart ? slot.startTime : slot.endTime,
+      title: isStart ? 'Giờ bắt đầu (Ca ${index + 1})' : 'Giờ kết thúc (Ca ${index + 1})',
+      secondaryButtonText: 'Hủy',
     );
     if (picked != null) {
       setState(() {

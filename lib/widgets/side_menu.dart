@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import '../providers/overtime_provider.dart';
 import '../screens/settings_screen.dart';
 import '../screens/settings/google_sheets_screen.dart';
 import '../screens/settings/backup_screen.dart';
@@ -9,7 +7,6 @@ import '../screens/settings/notifications_screen.dart';
 import '../screens/settings/security_screen.dart';
 import '../screens/settings/update_screen.dart';
 import '../services/update_service.dart';
-import 'package:provider/provider.dart';
 
 typedef OnSelectTab = void Function(int index);
 

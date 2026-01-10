@@ -1,6 +1,11 @@
 """
 Deploy APK to GitHub Releases
 Script để build APK và upload lên GitHub Releases tự động
+
+Usage:
+    python deploy_overtime.py          # Full deploy (check + build + upload)
+    python deploy_overtime.py --check  # Only run flutter analyze (quick check)
+    python deploy_overtime.py --build  # Only build, skip check and upload
 """
 
 import os
@@ -11,6 +16,8 @@ import subprocess
 from datetime import datetime
 import time
 import requests
+import base64
+import argparse
 
 # === CONFIGURATION ===
 PUBSPEC_PATH = 'pubspec.yaml'
@@ -19,7 +26,8 @@ RELEASE_NOTES_DIR = 'release_notes'
 METADATA_PATH = 'metadata.json'
 
 # GitHub Config
-GITHUB_REPO = 'ANHDOO/OverTime_Master'
+GITHUB_REPO = 'ANHDOO/OverTime_Master'        # Main repo for source code + releases
+UPDATES_REPO = 'ANHDOO/OverTime_Updates'       # Separate public repo for metadata.json
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN') or '' 
 if not GITHUB_TOKEN and os.path.exists('tool/.github_token'):
     with open('tool/.github_token', 'r') as f:
@@ -65,16 +73,68 @@ def get_release_notes(version):
 - **Build:** {get_version_code()}
 - **Ngày phát hành:** {datetime.now().strftime('%d/%m/%Y')}
 
-## Tinh năng moi
+## Tính năng mới
 - Cải thiện hiệu suất và ổn định
 - Sửa lỗi nhỏ
 """
+
+
+# === CHECK MODE ===
+
+def run_flutter_analyze():
+    """Chạy flutter analyze và trả về True nếu không có lỗi"""
+    log("\n" + "="*60)
+    log("FLUTTER ANALYZE - Kiểm tra lỗi")
+    log("="*60)
+    
+    log("[+] Đang chạy flutter analyze...")
+    
+    result = subprocess.run(
+        ['flutter', 'analyze'],
+        capture_output=True,
+        text=True,
+        shell=True
+    )
+    
+    # In kết quả
+    if result.stdout:
+        log(result.stdout)
+    if result.stderr:
+        log(result.stderr)
+    
+    # Đếm số lỗi và warning - sử dụng pattern chính xác
+    # Flutter analyze format: "severity - message - file:line - code"
+    import re
+    error_matches = re.findall(r'^\s*error\s+-', output, re.MULTILINE | re.IGNORECASE)
+    warning_matches = re.findall(r'^\s*warning\s+-', output, re.MULTILINE | re.IGNORECASE)
+    info_matches = re.findall(r'^\s*info\s+-', output, re.MULTILINE | re.IGNORECASE)
+    
+    error_count = len(error_matches)
+    warning_count = len(warning_matches)
+    info_count = len(info_matches)
+    
+    log("\n" + "-"*60)
+    log(f"Kết quả: {error_count} errors, {warning_count} warnings, {info_count} infos")
+    
+    if error_count > 0:
+        log("[X] Có LỖI cần sửa trước khi build!")
+        return False
+    elif warning_count > 0:
+        log("[!] Có warnings nhưng không block build")
+        return True
+    else:
+        log("[OK] Không có lỗi!")
+        return True
+
+
+# === BUILD ===
 
 def build_apk():
     """Build APK release"""
     log("\n[+] Building APK...")
     try:
         subprocess.run(['flutter', 'clean'], check=True, shell=True)
+        
         result = subprocess.run(
             ['flutter', 'build', 'apk', '--target-platform', 'android-arm64', '--release'],
             check=True,
@@ -89,28 +149,25 @@ def build_apk():
         
         return True
     except Exception as e:
-        log(f"[X] Build error: {e}")
-        cleanup_gradle_processes()  # Vẫn dọn dẹp dù build thất bại
+        log(f"[X] Build that bai: {e}")
+        cleanup_gradle_processes()
         return False
 
+
 def cleanup_gradle_processes():
-    """Kill Java/Gradle processes sau khi build để giải phóng RAM"""
-    log("[+] Dang don dep Gradle/Java processes...")
+    """Dọn dẹp các process Gradle/Java để giải phóng RAM"""
+    log("\n[+] Dang don dep Gradle/Java processes...")
     try:
         if sys.platform == 'win32':
-            # Kill các process OpenJDK Platform binary (Gradle daemon)
-            subprocess.run(
-                ['taskkill', '/F', '/IM', 'java.exe'],
-                shell=True, capture_output=True
-            )
-            # Stop Gradle daemon
-            subprocess.run(
-                ['gradlew.bat', '--stop'],
-                shell=True, capture_output=True, cwd='android'
-            )
+            # Windows
+            subprocess.run(['taskkill', '/F', '/IM', 'java.exe'], 
+                         capture_output=True, shell=True)
+            subprocess.run(['taskkill', '/F', '/IM', 'gradle.exe'], 
+                         capture_output=True, shell=True)
         else:
-            subprocess.run(['pkill', '-f', 'gradle'], capture_output=True)
+            # Linux/Mac
             subprocess.run(['pkill', '-f', 'java'], capture_output=True)
+            subprocess.run(['pkill', '-f', 'gradle'], capture_output=True)
         log("[OK] Da giai phong RAM (killed Gradle/Java processes)")
     except Exception as e:
         log(f"[!] Khong the don dep: {e}")
@@ -119,47 +176,62 @@ def cleanup_gradle_processes():
 # === GITHUB FUNCTIONS ===
 
 def push_metadata_to_github(metadata_dict):
-    """Đẩy file metadata.json lên GitHub bằng Content API (Zero-Touch)"""
+    """Đẩy file metadata.json lên CÁCH repo GitHub (cả repo cũ và mới để backward compatible)"""
     if not GITHUB_TOKEN:
+        log("[!] GITHUB_TOKEN chưa được cấu hình, bỏ qua push metadata")
         return False
 
-    log(f"\n[+] Dang tu dong day metadata.json len GitHub...")
+    log(f"\n[+] Đang push metadata.json (Build {metadata_dict['versionCode']}) lên GitHub...")
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
     
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{METADATA_PATH}"
+    # Chỉ push lên repo OverTime_Updates (repo riêng cho updates)
+    repos_to_push = [
+        UPDATES_REPO,   # Repo mới cho updates (public)
+    ]
     
-    # 1. Lấy SHA của file cũ (nếu có) để có thể ghi đè
-    sha = None
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        sha = response.json().get('sha')
-    
-    # 2. Upload/Update file
-    import base64
-    content_str = json.dumps(metadata_dict, indent=2, ensure_ascii=False)
-    content_base64 = base64.b64encode(content_str.encode('utf-8')).decode('utf-8')
-    
-    data = {
-        "message": f"🤖 Auto-update metadata for v{metadata_dict['versionName']}",
-        "content": content_base64,
-        "branch": "main" # Hoặc branch mặc định của bạn
-    }
-    
-    if sha:
-        data["sha"] = sha
+    success = True
+    for repo in repos_to_push:
+        url = f"https://api.github.com/repos/{repo}/contents/{METADATA_PATH}"
         
-    res = requests.put(url, headers=headers, json=data)
+        # 1. Lấy SHA của file hiện tại (nếu có)
+        sha = None
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            sha = response.json().get('sha')
+        
+        # 2. Chuẩn bị content
+        content_str = json.dumps(metadata_dict, indent=2, ensure_ascii=False)
+        content_base64 = base64.b64encode(content_str.encode('utf-8')).decode('utf-8')
+        
+        # 3. Tạo commit message
+        version_name = metadata_dict['versionName']
+        version_code = metadata_dict['versionCode']
+        commit_msg = f"📦 Update metadata v{version_name} (Build {version_code})"
+        
+        # 4. Push lên GitHub
+        data = {
+            "message": commit_msg,
+            "content": content_base64,
+            "branch": "main"
+        }
+        
+        if sha:
+            data["sha"] = sha
+            
+        res = requests.put(url, headers=headers, json=data)
+        
+        if res.status_code in [200, 201]:
+            log(f"[OK] Đã push metadata → {repo}")
+        else:
+            log(f"[X] Không thể push → {repo}: {res.status_code}")
+            success = False
     
-    if res.status_code in [200, 201]:
-        log("[OK] Da cap nhat metadata.json len GitHub thanh cong!")
-        return True
-    else:
-        log(f"[X] Khong the day metadata len GitHub: {res.status_code} - {res.text}")
-        return False
+    return success
+
 
 def deploy_to_github(version, apk_path, release_notes):
     """Tạo GitHub Release và upload APK"""
@@ -169,87 +241,115 @@ def deploy_to_github(version, apk_path, release_notes):
         log("    va luu vao file 'tool/.github_token'.")
         return None
 
-    log(f"\n[+] Dang tao GitHub Release cho v{version}...")
+    log(f"\n[+] Dang deploy len GitHub Releases...")
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
-
-    # 1. Tạo Release
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
-    data = {
-        "tag_name": f"v{version}",
-        "name": f"v{version} - {datetime.now().strftime('%d/%m/%Y')}",
-        "body": release_notes,
-        "draft": False,
-        "prerelease": False
-    }
-
-    response = requests.post(url, headers=headers, json=data)
     
-    if response.status_code == 422: # Tag already exists
-        log(f"[i] Release v{version} da ton tai, dang lay thong tin...")
-        response = requests.get(f"{url}/tags/v{version}", headers=headers)
+    # 1. Check if release exists
+    tag_name = f"v{version}"
+    releases_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{tag_name}"
     
-    if response.status_code not in [200, 201]:
-        log(f"[X] Khong the tao/lay Release: {response.status_code} - {response.text}")
-        return None
-
-    release_data = response.json()
-    release_id = release_data['id']
-    upload_url = release_data['upload_url'].split('{')[0]
+    response = requests.get(releases_url, headers=headers)
     
-    # Kiem tra xem asset da ton tai chua
-    assets_url = f"{url}/{release_id}/assets"
-    assets_res = requests.get(assets_url, headers=headers)
-    if assets_res.status_code == 200:
-        for asset in assets_res.json():
-            if asset['name'] == f'overtime_{version}.apk':
-                log(f"[i] File APK da ton tai tren GitHub Release. Dang xoa de upload lai...")
-                requests.delete(f"https://api.github.com/repos/{GITHUB_REPO}/releases/assets/{asset['id']}", headers=headers)
-
+    if response.status_code == 200:
+        # Release exists - update it
+        release_data = response.json()
+        release_id = release_data['id']
+        log(f"[i] Release {tag_name} da ton tai, dang cap nhat...")
+        
+        # Delete old asset if exists
+        for asset in release_data.get('assets', []):
+            if asset['name'].endswith('.apk'):
+                delete_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/assets/{asset['id']}"
+                requests.delete(delete_url, headers=headers)
+                log(f"[i] Da xoa APK cu: {asset['name']}")
+    else:
+        # Create new release
+        create_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
+        create_data = {
+            "tag_name": tag_name,
+            "name": f"OverTime v{version}",
+            "body": release_notes,
+            "draft": False,
+            "prerelease": False
+        }
+        
+        response = requests.post(create_url, headers=headers, json=create_data)
+        if response.status_code != 201:
+            log(f"[X] Khong the tao release: {response.status_code}")
+            log(response.text)
+            return None
+            
+        release_data = response.json()
+        release_id = release_data['id']
+        log(f"[OK] Da tao release moi: {tag_name}")
+    
     # 2. Upload APK
-    log(f"[+] Dang upload APK len GitHub Release...")
+    upload_url = f"https://uploads.github.com/repos/{GITHUB_REPO}/releases/{release_id}/assets?name=overtime_{version}.apk"
+    
     with open(apk_path, 'rb') as f:
-        upload_response = requests.post(
-            f"{upload_url}?name=overtime_{version}.apk",
-            headers={
-                **headers,
-                "Content-Type": "application/vnd.android.package-archive"
-            },
-            data=f
-        )
-
-    if upload_response.status_code not in [200, 201]:
-        log(f"[X] Khong the upload APK len GitHub: {upload_response.text}")
+        apk_data = f.read()
+    
+    upload_headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/vnd.android.package-archive"
+    }
+    
+    log(f"[+] Dang upload APK ({format_size(len(apk_data))})...")
+    response = requests.post(upload_url, headers=upload_headers, data=apk_data)
+    
+    if response.status_code != 201:
+        log(f"[X] Upload APK that bai: {response.status_code}")
+        log(response.text)
         return None
-
-    asset_data = upload_response.json()
+    
+    asset_data = response.json()
     download_url = asset_data['browser_download_url']
+    
     log(f"[OK] Upload len GitHub thanh cong: {download_url}")
     return download_url
 
+
 def create_metadata_json(version, version_code, apk_url, release_notes):
-    """Tạo hoặc cập nhật file metadata.json cục bộ"""
+    """Tạo metadata.json cho app update check (format giống Build 22)"""
+    # Lấy file size của APK
+    file_size = "21.0MB"
+    try:
+        apk_size = os.path.getsize(APK_PATH)
+        file_size = f"{apk_size / (1024 * 1024):.1f}MB"
+    except:
+        pass
+    
     metadata = {
         "versionName": version,
         "versionCode": version_code,
         "downloadUrl": apk_url,
-        "changelog": release_notes[:500] + "..." if len(release_notes) > 500 else release_notes,
+        "changelog": release_notes,  # NOT escaped, full markdown
         "publishedAt": datetime.now().isoformat() + "Z",
-        "fileSize": format_size(os.path.getsize(APK_PATH))
+        "fileSize": file_size
     }
     
+    # Lưu local
     with open(METADATA_PATH, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
     
-    log(f"[OK] Da cap nhat {METADATA_PATH}")
+    log(f"[OK] Da cap nhat metadata.json Release")
     return metadata
+
 
 # === MAIN ===
 
 def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser(description='Deploy OverTime APK to GitHub')
+    parser.add_argument('--check', action='store_true', help='Chỉ chạy flutter analyze (không build)')
+    parser.add_argument('--build', action='store_true', help='Chỉ build APK (không upload)')
+    args = parser.parse_args()
+    
     print("="*60)
     print("OVER TIME - DEPLOY TO GITHUB RELEASES")
     print("="*60)
@@ -258,7 +358,23 @@ def main():
     version_code = get_version_code()
     print(f"[i] Version: {version} (Build: {version_code})")
 
-    # Luôn build APK mới để đảm bảo code mới nhất được đóng gói
+    # Check-only mode
+    if args.check:
+        success = run_flutter_analyze()
+        if success:
+            print("\n[OK] Kiểm tra hoàn tất! Có thể chạy: python deploy_overtime.py")
+        else:
+            print("\n[X] Có lỗi cần sửa!")
+        sys.exit(0 if success else 1)
+    
+    # Build-only mode
+    if args.build:
+        if not build_apk():
+            sys.exit(1)
+        print(f"\n[OK] APK đã được build tại: {APK_PATH}")
+        sys.exit(0)
+
+    # Full deploy mode
     if not build_apk():
         sys.exit(1)
 
@@ -268,7 +384,7 @@ def main():
     if github_apk_url:
         metadata = create_metadata_json(version, version_code, github_apk_url, release_notes)
         
-        # TỰ ĐỘNG PUSH METADATA LÊN GITHUB
+        # Push metadata lên GitHub
         push_metadata_to_github(metadata)
         
         print("\n" + "="*60)
@@ -277,8 +393,8 @@ def main():
         print(f"Version: {version}")
         print(f"GitHub URL: {github_apk_url}")
         print("-" * 60)
-        print("[i] He thong da tu dong cap nhat metadata.json len repo.")
-        print("    App cua ban da co the nhan thay ban cap nhat moi ngay lap tuc!")
+        print("[i] Metadata đã được push lên GitHub.")
+        print("    App sẽ nhận được thông báo cập nhật!")
         print("="*60)
     else:
         print("\n[X] Deploy that bai!")

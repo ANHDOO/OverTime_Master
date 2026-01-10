@@ -17,6 +17,19 @@ void callbackDispatcher() {
           final body = inputData?['body'] ?? 'Bạn có thông báo mới';
           await BackgroundNotificationService.showNotification(999, title, body);
           break;
+          
+        case BackgroundNotificationService.dailyReminderTask:
+          final title = inputData?['title'] ?? 'Nhắc nhở hằng ngày';
+          final body = inputData?['body'] ?? 'Cập nhật OT và chi tiêu hôm nay nha!';
+          await BackgroundNotificationService.showNotification(1001, title, body);
+          
+          // Reschedule for tomorrow
+          await BackgroundNotificationService.scheduleDailyReminder(
+            const Duration(hours: 24),
+            title,
+            body,
+          );
+          break;
       }
 
       return true;
@@ -29,13 +42,14 @@ void callbackDispatcher() {
 
 class BackgroundNotificationService {
   static const String oneTimeReminderTask = 'one_time_reminder';
+  static const String dailyReminderTask = 'daily_reminder';
 
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
   // Initialize WorkManager and background tasks
   static Future<void> initialize() async {
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
     debugPrint('BackgroundNotificationService initialized');
   }
 
@@ -73,7 +87,22 @@ class BackgroundNotificationService {
       oneTimeReminderTask,
       initialDelay: delay,
       inputData: {'title': title, 'body': body},
+      existingWorkPolicy: ExistingWorkPolicy.append,
     );
+  }
+
+  // Schedule daily reminder
+  static Future<void> scheduleDailyReminder(Duration delay, String title, String body) async {
+    // We use a unique name for the daily reminder to avoid duplicates
+    // but we want to replace any existing one when scheduling from the UI
+    await Workmanager().registerOneOffTask(
+      'daily_reminder_task',
+      dailyReminderTask,
+      initialDelay: delay,
+      inputData: {'title': title, 'body': body},
+      existingWorkPolicy: ExistingWorkPolicy.replace,
+    );
+    debugPrint('Daily reminder scheduled with delay: $delay');
   }
 
   // Cancel all background tasks

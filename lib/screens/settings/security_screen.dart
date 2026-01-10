@@ -14,7 +14,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
   final AuthService _authService = AuthService();
   
   bool _isLockEnabled = false;
-  bool _isPinSet = false;
   bool _isBiometricEnabled = false;
   bool _isBiometricAvailable = false;
   bool _isLoading = true;
@@ -34,7 +33,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
     if (mounted) {
       setState(() {
         _isLockEnabled = lockEnabled;
-        _isPinSet = pinSet;
         _isBiometricEnabled = biometricEnabled;
         _isBiometricAvailable = biometricAvailable;
         _isLoading = false;
@@ -51,7 +49,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
         await _authService.setLockEnabled(true);
         setState(() {
           _isLockEnabled = true;
-          _isPinSet = true;
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +63,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
         await _authService.setLockEnabled(false);
         setState(() {
           _isLockEnabled = false;
-          _isPinSet = false;
           _isBiometricEnabled = false;
         });
         if (mounted) {

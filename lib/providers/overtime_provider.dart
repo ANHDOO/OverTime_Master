@@ -16,7 +16,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class OvertimeProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
-  final NotificationService _notificationService = NotificationService();
   List<OvertimeEntry> _entries = [];
   List<DebtEntry> _debtEntries = [];
   List<CashTransaction> _cashTransactions = [];
@@ -49,19 +48,19 @@ class OvertimeProvider with ChangeNotifier {
     return total;
   }
 
+  double get totalDebtAmount {
+    double total = 0;
+    for (var debt in _debtEntries) {
+      total += debt.amount;
+    }
+    return total;
+  }
+
   double get totalDebtInterest {
     double total = 0;
     for (var debt in _debtEntries) {
       final interest = debt.calculateInterest();
       total += interest['totalInterest']!;
-    }
-    return total;
-  }
-
-  double get totalDebtAmount {
-    double total = 0;
-    for (var debt in _debtEntries) {
-      total += debt.amount;
     }
     return total;
   }

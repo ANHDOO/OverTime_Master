@@ -21,8 +21,8 @@ class UpdateService extends ChangeNotifier {
   factory UpdateService() => _instance;
   UpdateService._internal();
 
-  // URL chứa thông tin metadata trên GitHub
-  static const String METADATA_URL = 'https://raw.githubusercontent.com/ANHDOO/OverTime_Master/main/metadata.json';
+  // URL chứa thông tin metadata trên GitHub (repo riêng cho updates)
+  static const String METADATA_URL = 'https://raw.githubusercontent.com/ANHDOO/OverTime_Updates/main/metadata.json';
 
   // Trạng thái quản lý
   DownloadStatus _status = DownloadStatus.idle;

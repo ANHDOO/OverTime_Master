@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/overtime_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
+import 'services/storage_service.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -17,6 +18,9 @@ void main() async {
   NotificationService().setNavigatorKey(navigatorKey);
   // Ensure notification plugin initialized before providers schedule reminders
   await NotificationService().init();
+  
+  // Cleanup old files on first launch of new version
+  await StorageService.performFirstLaunchCleanup();
 
   runApp(
     MultiProvider(
