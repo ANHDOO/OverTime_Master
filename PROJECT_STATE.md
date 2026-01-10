@@ -3,7 +3,7 @@
 ## Tổng quan dự án
 Ứng dụng quản lý giờ tăng ca (Overtime) cá nhân, hỗ trợ tính lương, xuất báo cáo Excel và sao lưu Google Drive.
 
-- **Current Version:** 1.0.6+37
+- **Current Version:** 1.0.6+38
 - **Status:** Active Development (UX/UI Polish Phase)
 
 ## Công nghệ sử dụng

@@ -105,9 +105,9 @@ def run_flutter_analyze():
     # Đếm số lỗi và warning - sử dụng pattern chính xác
     # Flutter analyze format: "severity - message - file:line - code"
     import re
-    error_matches = re.findall(r'^\s*error\s+-', output, re.MULTILINE | re.IGNORECASE)
-    warning_matches = re.findall(r'^\s*warning\s+-', output, re.MULTILINE | re.IGNORECASE)
-    info_matches = re.findall(r'^\s*info\s+-', output, re.MULTILINE | re.IGNORECASE)
+    error_matches = re.findall(r'^\s*error\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
+    warning_matches = re.findall(r'^\s*warning\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
+    info_matches = re.findall(r'^\s*info\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
     
     error_count = len(error_matches)
     warning_count = len(warning_matches)

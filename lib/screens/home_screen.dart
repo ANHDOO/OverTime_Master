@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/overtime_provider.dart';
+import '../models/overtime_entry.dart';
 import 'add_entry_screen.dart';
 import 'entry_detail_screen.dart';
 import 'interest_calculator_screen.dart';
@@ -131,7 +132,7 @@ class HomeScreen extends StatelessWidget {
                                     action: SnackBarAction(
                                       label: 'Hoàn tác',
                                       onPressed: () {
-                                        provider.addEntry(deletedEntry);
+                                        provider.addEntryObject(deletedEntry);
                                       },
                                     ),
                                     duration: const Duration(seconds: 4),

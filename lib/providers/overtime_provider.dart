@@ -254,6 +254,12 @@ class OvertimeProvider with ChangeNotifier {
     await fetchEntries();
   }
 
+  // Add an existing entry object (useful for Undo)
+  Future<void> addEntryObject(OvertimeEntry entry) async {
+    await _storageService.insertEntry(entry);
+    await fetchEntries();
+  }
+
   Future<void> deleteEntry(int id) async {
     await _storageService.deleteEntry(id);
     await fetchEntries();
