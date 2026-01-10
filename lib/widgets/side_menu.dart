@@ -91,6 +91,14 @@ class SideMenu extends StatelessWidget {
                       Navigator.pop(context);
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                     }),
+                    _buildNavItem(context, icon: Icons.notifications, label: 'Nhắc & Thông báo', onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                    }),
+                    _buildNavItem(context, icon: Icons.backup, label: 'Sao lưu & Khôi phục', onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen()));
+                    }),
                     _buildNavItem(context, icon: Icons.cloud_sync, label: 'Google Sheets', onTap: () {
                       Navigator.pop(context);
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const GoogleSheetsScreen()));
@@ -124,14 +132,6 @@ class SideMenu extends StatelessWidget {
                         );
                       },
                     ),
-                    _buildNavItem(context, icon: Icons.backup, label: 'Sao lưu & Khôi phục', onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupScreen()));
-                    }),
-                    _buildNavItem(context, icon: Icons.notifications, label: 'Nhắc & Thông báo', onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-                    }),
                   ],
                 ),
               ),

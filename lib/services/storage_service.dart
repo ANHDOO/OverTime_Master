@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../models/overtime_entry.dart';
 import '../models/debt_entry.dart';
 import '../models/cash_transaction.dart';
@@ -218,10 +219,19 @@ class StorageService {
   static Future<void> performFirstLaunchCleanup() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastCleanupVersion = prefs.getString('last_cleanup_version') ?? '';
-      const currentVersion = '1.0.5'; // Should match app version
+      final lastCleanupBuild = prefs.getInt('last_cleanup_build') ?? 0;
       
-      if (lastCleanupVersion != currentVersion) {
+      // Get current build number from package info
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+      
+      debugPrint('🧹 Cleanup check: lastBuild=$lastCleanupBuild, currentBuild=$currentBuild');
+      
+      if (currentBuild > lastCleanupBuild) {
+        debugPrint('🧹 Running cleanup for build $currentBuild...');
+        
+        int deletedFiles = 0;
+        
         // 1. Clear temp directory
         final tempDir = await getTemporaryDirectory();
         if (await tempDir.exists()) {
@@ -229,34 +239,42 @@ class StorageService {
           for (var file in files) {
             try {
               await file.delete(recursive: true);
+              deletedFiles++;
             } catch (_) {}
           }
+          debugPrint('🧹 Cleared ${files.length} temp items');
         }
         
         // 2. Clear old APK downloads
         final appDocsDir = await getApplicationDocumentsDirectory();
-        final apkFiles = appDocsDir.listSync().where((f) => f.path.endsWith('.apk'));
+        final apkFiles = appDocsDir.listSync().where((f) => f.path.endsWith('.apk')).toList();
         for (var apk in apkFiles) {
           try {
             await apk.delete();
+            deletedFiles++;
+            debugPrint('🧹 Deleted APK: ${apk.path}');
           } catch (_) {}
         }
         
         // 3. Clear old Excel exports (older than 7 days)
-        final excelFiles = appDocsDir.listSync().where((f) => f.path.endsWith('.xlsx'));
+        final excelFiles = appDocsDir.listSync().where((f) => f.path.endsWith('.xlsx')).toList();
         final oneWeekAgo = DateTime.now().subtract(const Duration(days: 7));
         for (var excel in excelFiles) {
           try {
             final stat = await excel.stat();
             if (stat.modified.isBefore(oneWeekAgo)) {
               await excel.delete();
+              deletedFiles++;
+              debugPrint('🧹 Deleted old Excel: ${excel.path}');
             }
           } catch (_) {}
         }
         
         // Mark as cleaned
-        await prefs.setString('last_cleanup_version', currentVersion);
-        debugPrint('✅ First launch cleanup completed for version $currentVersion');
+        await prefs.setInt('last_cleanup_build', currentBuild);
+        debugPrint('✅ Cleanup completed: $deletedFiles files deleted');
+      } else {
+        debugPrint('🧹 Cleanup skipped - already cleaned for this build');
       }
     } catch (e) {
       debugPrint('⚠️ Cleanup error: $e');

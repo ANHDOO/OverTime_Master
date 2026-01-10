@@ -4,6 +4,7 @@ import 'lock_screen.dart';
 import '../services/notification_service.dart';
 import '../services/update_service.dart';
 import '../services/auth_service.dart';
+import '../services/backup_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -78,6 +79,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         }
       } catch (e) {
         debugPrint('❌ Update check failed: $e');
+      }
+    });
+
+    // Silent Sign-In Google Drive (Global)
+    Future.delayed(const Duration(milliseconds: 1000), () async {
+      try {
+        final backupService = BackupService();
+        await backupService.initializeGoogleSignIn();
+        final success = await backupService.signInSilently();
+        debugPrint('Global Silent Sign-In: $success');
+      } catch (e) {
+        debugPrint('Global Silent Sign-In error: $e');
       }
     });
 

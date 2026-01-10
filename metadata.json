@@ -1,8 +1,8 @@
 {
-  "versionName": "1.0.5",
-  "versionCode": 29,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.5/overtime_1.0.5.apk",
-  "changelog": "# OverTime v1.0.5\n- **Version:** 1.0.5\n- **Build:** 29\n- **Ngày phát hành:** 10/01/2026\n\n## Tinh năng moi\n- Cải thiện hiệu suất và ổn định\n- Sửa lỗi nhỏ\n",
-  "publishedAt": "2026-01-10T15:56:02.967022Z",
+  "versionName": "1.0.6",
+  "versionCode": 37,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.6/overtime_1.0.6.apk",
+  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.6+37\n\n## Có gì mới\n- **Biểu đồ Đường Premium:** Nâng cấp giao diện thống kê với biểu đồ đường cong mềm mại, hiệu ứng gradient và tooltip tương tác cho cả Tăng ca và Thu chi.\n- **Sửa lỗi Silent Sign-In:** Chuyển logic đăng nhập Google Drive vào lúc khởi động ứng dụng (SplashScreen). Ứng dụng sẽ tự động kết nối ngầm, giúp trải nghiệm Sao lưu & Khôi phục mượt mà hơn.\n- **Cải thiện UX:** Truy cập dữ liệu sao lưu nhanh hơn và biểu đồ dễ đọc hơn.\n\n## Thay đổi kỹ thuật\n- Thay thế `BarChart` bằng `LineChart` trong `StatisticsScreen`.\n- Tối ưu hóa khởi tạo `BackupService` trong `SplashScreen`.\n- Cập nhật `BackupScreen` để sử dụng trạng thái đăng nhập toàn cục.\n",
+  "publishedAt": "2026-01-10T19:14:49.487388Z",
   "fileSize": "21.6MB"
 }

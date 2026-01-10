@@ -31,6 +31,9 @@ class UpdateService extends ChangeNotifier {
   UpdateInfo? _updateInfo;
   String? _downloadedFilePath;
   DateTime? _lastCheckTime;
+  String? _currentChangelog;  // Changelog của version hiện tại
+  String? _newChangelog;      // Changelog của version mới (nếu có)
+  String? _currentFileSize;   // File size để hiển thị
 
   DownloadStatus get status => _status;
   double get progress => _progress;
@@ -39,6 +42,9 @@ class UpdateService extends ChangeNotifier {
   bool get hasUpdate => _updateInfo != null;
   String? get downloadedFilePath => _downloadedFilePath;
   DateTime? get lastCheckTime => _lastCheckTime;
+  String? get currentChangelog => _currentChangelog;
+  String? get newChangelog => _newChangelog;
+  String? get currentFileSize => _currentFileSize;
 
   final Dio _dio = Dio();
 
@@ -128,6 +134,10 @@ class UpdateService extends ChangeNotifier {
       final remoteVersionName = metadata['versionName'] as String?;
       final downloadUrl = metadata['downloadUrl'] as String?;
       
+      // Always store changelog from metadata for display
+      final remoteChangelog = metadata['changelog'] as String?;
+      _currentFileSize = metadata['fileSize'] as String?;
+      
       if (remoteVersionCode == null || remoteVersionName == null || downloadUrl == null) {
         _status = DownloadStatus.error;
         _error = 'Metadata không hợp lệ.';
@@ -153,8 +163,14 @@ class UpdateService extends ChangeNotifier {
       debugPrint('📢 Update Result: $resultHasUpdate (Remote: $remoteVersionName Build $remoteVersionCode)');
       
       _status = resultHasUpdate ? DownloadStatus.idle : DownloadStatus.idle;
-      if (!resultHasUpdate) {
+      if (resultHasUpdate) {
+        _newChangelog = remoteChangelog;
+        // If we don't have a current changelog yet, we can't show history
+        // but usually the remote metadata is the LATEST.
+      } else {
         _updateInfo = null;
+        _currentChangelog = remoteChangelog;
+        _newChangelog = null;
       }
       
       notifyListeners();

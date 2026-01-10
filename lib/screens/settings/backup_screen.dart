@@ -23,20 +23,40 @@ class _BackupScreenState extends State<BackupScreen> {
   @override
   void initState() {
     super.initState();
+    _backupService.addListener(_onBackupServiceChanged);
     _initializeBackupService();
+  }
+
+  @override
+  void dispose() {
+    _backupService.removeListener(_onBackupServiceChanged);
+    super.dispose();
+  }
+
+  void _onBackupServiceChanged() {
+    if (mounted) {
+      setState(() {
+        _isSignedIn = _backupService.isSignedInValue;
+      });
+      if (_isSignedIn && _backupList.isEmpty) {
+        _loadBackupData();
+      }
+    }
   }
 
   Future<void> _initializeBackupService() async {
     try {
       await _backupService.initializeGoogleSignIn();
       
-      // Try silent sign in first (fast, no UI)
-      final silentSuccess = await _backupService.signInSilently();
-      if (silentSuccess) {
-        _isSignedIn = true;
-        await _loadBackupData();
-      } else {
-        _isSignedIn = false;
+      // Check if already signed in
+      final signedIn = await _backupService.isSignedIn();
+      if (signedIn) {
+        // Restore session silently to initialize Drive API
+        await _backupService.signInSilently();
+        _isSignedIn = _backupService.isSignedInValue;
+        if (_isSignedIn) {
+          await _loadBackupData();
+        }
       }
     } catch (e) {
       debugPrint('Backup init error: $e');
@@ -268,26 +288,15 @@ class _BackupScreenState extends State<BackupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show centered loading during initialization
-    if (_isInitializing) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Sao lưu & Khôi phục')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Đang kiểm tra đăng nhập...'),
-            ],
-          ),
-        ),
-      );
-    }
-    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sao lưu & Khôi phục'),
+        bottom: _isInitializing
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(2),
+                child: LinearProgressIndicator(minHeight: 2),
+              )
+            : null,
       ),
       body: Stack(
         children: [
@@ -319,6 +328,15 @@ class _BackupScreenState extends State<BackupScreen> {
 
                   // Backup List
                   _buildBackupList(),
+                ] else if (!_isInitializing) ...[
+                  // Show a hint if not signed in and not initializing
+                  const SizedBox(height: 40),
+                  const Center(
+                    child: Text(
+                      'Vui lòng đăng nhập để xem danh sách sao lưu',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
                 ],
               ],
             ),

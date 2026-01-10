@@ -3,11 +3,20 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/overtime_provider.dart';
 import '../widgets/custom_time_picker.dart';
+import '../models/overtime_entry.dart';
+import '../models/ot_template.dart';
 
 class AddEntryScreen extends StatefulWidget {
   final DateTime? selectedMonth;
+  final OvertimeEntry? editEntry;   // For editing existing entry
+  final OvertimeEntry? copyFrom;    // For copying time from another entry
   
-  const AddEntryScreen({super.key, this.selectedMonth});
+  const AddEntryScreen({
+    super.key, 
+    this.selectedMonth,
+    this.editEntry,
+    this.copyFrom,
+  });
 
   @override
   State<AddEntryScreen> createState() => _AddEntryScreenState();
@@ -50,6 +59,26 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Handle edit mode - load existing entry data
+    if (widget.editEntry != null) {
+      final entry = widget.editEntry!;
+      _selectedDate = entry.date;
+      _startTime = entry.startTime;
+      _endTime = entry.endTime;
+      return;
+    }
+    
+    // Handle copy mode - copy time, but date is today (user picks new date)
+    if (widget.copyFrom != null) {
+      final entry = widget.copyFrom!;
+      _startTime = entry.startTime;
+      _endTime = entry.endTime;
+      _selectedDate = DateTime.now();
+      return;
+    }
+    
+    // Default: new entry
     final now = DateTime.now();
     if (widget.selectedMonth != null) {
       final selectedMonth = widget.selectedMonth!;
@@ -78,6 +107,67 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
     setState(() {
       _timeSlots.removeAt(index);
     });
+  }
+
+  void _showTemplateSelector() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                '⚡ Chọn Template',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...OTTemplate.defaults.map((template) => ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: template.color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(template.icon, color: template.color, size: 22),
+              ),
+              title: Text(template.name),
+              subtitle: Text('${template.timeRangeString} (${template.hours}h)'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                setState(() {
+                  _startTime = template.startTime;
+                  _endTime = template.endTime;
+                  _inputMode = 0; // Switch to specific time mode
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Đã áp dụng: ${template.name}'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            )),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
   }
 
   double _getTotalHours() {
@@ -205,7 +295,17 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thêm tăng ca'),
+        title: Text(
+          widget.editEntry != null ? 'Chỉnh sửa OT' :
+          widget.copyFrom != null ? 'Sao chép OT' : 'Thêm tăng ca'
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            tooltip: 'Template nhanh',
+            onPressed: _showTemplateSelector,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),

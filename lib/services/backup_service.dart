@@ -9,10 +9,13 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
-class BackupService {
+class BackupService extends ChangeNotifier {
   static final BackupService _instance = BackupService._internal();
   factory BackupService() => _instance;
   BackupService._internal();
+
+  bool _isSignedIn = false;
+  bool get isSignedInValue => _isSignedIn;
 
   static const String _appFolderName = 'Note_OverTime_Backup';
   static const String _backupFileName = 'overtime_backup.db';
@@ -43,8 +46,12 @@ class BackupService {
         final auth = await account.authentication;
         final client = GoogleAuthClient(auth.accessToken!);
         _driveApi = drive.DriveApi(client);
+        _isSignedIn = true;
+        notifyListeners();
         return true;
       }
+      _isSignedIn = false;
+      notifyListeners();
       return false;
     } catch (e) {
       debugPrint('Google Sign In error: $e');
@@ -57,11 +64,14 @@ class BackupService {
     await _googleSignIn?.signOut();
     _driveApi = null;
     _appFolderId = null;
+    _isSignedIn = false;
+    notifyListeners();
   }
 
   // Check if user is signed in
   Future<bool> isSignedIn() async {
-    return await _googleSignIn?.isSignedIn() ?? false;
+    _isSignedIn = await _googleSignIn?.isSignedIn() ?? false;
+    return _isSignedIn;
   }
 
   // Silent sign in - restore previous session without UI
@@ -77,8 +87,12 @@ class BackupService {
         final auth = await account.authentication;
         final client = GoogleAuthClient(auth.accessToken!);
         _driveApi = drive.DriveApi(client);
+        _isSignedIn = true;
+        notifyListeners();
         return true;
       }
+      _isSignedIn = false;
+      notifyListeners();
       return false;
     } catch (e) {
       debugPrint('Silent sign in error: $e');
@@ -120,7 +134,7 @@ class BackupService {
   Future<bool> backupDatabase() async {
     try {
       if (_driveApi == null) {
-        final signedIn = await signIn();
+        final signedIn = await signInSilently();
         if (!signedIn) return false;
       }
 
@@ -170,7 +184,7 @@ class BackupService {
   Future<bool> restoreDatabase({String? backupFileId}) async {
     try {
       if (_driveApi == null) {
-        final signedIn = await signIn();
+        final signedIn = await signInSilently();
         if (!signedIn) return false;
       }
 
@@ -217,7 +231,7 @@ class BackupService {
   Future<List<Map<String, dynamic>>> getBackupList() async {
     try {
       if (_driveApi == null) {
-        final signedIn = await signIn();
+        final signedIn = await signInSilently();
         if (!signedIn) return [];
       }
 
@@ -262,7 +276,7 @@ class BackupService {
   Future<bool> backupImages(List<String> imagePaths) async {
     try {
       if (_driveApi == null) {
-        final signedIn = await signIn();
+        final signedIn = await signInSilently();
         if (!signedIn) return false;
       }
 
@@ -302,7 +316,7 @@ class BackupService {
   Future<List<String>> restoreImages() async {
     try {
       if (_driveApi == null) {
-        final signedIn = await signIn();
+        final signedIn = await signInSilently();
         if (!signedIn) return [];
       }
 

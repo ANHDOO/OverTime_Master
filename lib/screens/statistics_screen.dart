@@ -277,49 +277,36 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
               borderRadius: BorderRadius.circular(16),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
             ),
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: otData.isEmpty ? 100 : otData.map((e) => e['total'] as double).reduce((a, b) => a > b ? a : b) * 1.3,
-                barGroups: otData.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final data = entry.value;
-                  return BarChartGroupData(
-                    x: index,
-                    barRods: [
-                      BarChartRodData(
-                        toY: data['total'],
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context).colorScheme.primary,
-                            Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
-                        width: 22,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: otData.map((e) => e['total'] as double).reduce((a, b) => a > b ? a : b) * 1.3,
-                          color: Colors.grey.shade100,
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.shade100,
+                    strokeWidth: 1,
+                  ),
+                ),
                 titlesData: FlTitlesData(
                   show: true,
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
                         if (value.toInt() < otData.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               DateFormat('MM/yy').format(otData[value.toInt()]['month']),
-                              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           );
                         }
@@ -330,42 +317,72 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      interval: 1000000,
                       getTitlesWidget: (value, meta) {
                         if (value == 0) return const Text('');
                         return Text(
-                          format.format(value / 1000000).replaceAll('₫', '') + 'M',
+                          '${(value / 1000000).toStringAsFixed(0)}M',
                           style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                         );
                       },
                       reservedSize: 35,
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.shade200,
-                    strokeWidth: 1,
-                  ),
                 ),
                 borderData: FlBorderData(show: false),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    tooltipBgColor: Colors.blueGrey.shade800,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      return BarTooltipItem(
-                        '${DateFormat('MM/yyyy').format(otData[groupIndex]['month'])}\n',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                        children: [
-                          TextSpan(
-                            text: format.format(rod.toY),
-                            style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.w500),
-                          ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: otData.asMap().entries.map((entry) {
+                      return FlSpot(entry.key.toDouble(), entry.value['total']);
+                    }).toList(),
+                    isCurved: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                      ],
+                    ),
+                    barWidth: 4,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                        radius: 4,
+                        color: Colors.white,
+                        strokeWidth: 2,
+                        strokeColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          Theme.of(context).colorScheme.primary.withOpacity(0.0),
                         ],
-                      );
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ],
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    tooltipBgColor: Colors.blueGrey.shade800,
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        final data = otData[spot.x.toInt()];
+                        return LineTooltipItem(
+                          '${DateFormat('MM/yyyy').format(data['month'])}\n',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          children: [
+                            TextSpan(
+                              text: format.format(spot.y),
+                              style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        );
+                      }).toList();
                     },
                   ),
                 ),
@@ -553,18 +570,76 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
             ),
             child: LineChart(
               LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.shade100,
+                    strokeWidth: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() < cashData.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              DateFormat('MM/yy').format(cashData[value.toInt()]['month']),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 5000000,
+                      getTitlesWidget: (value, meta) {
+                        if (value == 0) return const Text('');
+                        return Text(
+                          '${(value / 1000000).toStringAsFixed(0)}M',
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                        );
+                      },
+                      reservedSize: 35,
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
                 lineBarsData: [
                   // Income line
                   LineChartBarData(
                     spots: cashData.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final data = entry.value;
-                      return FlSpot(index.toDouble(), data['income']);
+                      return FlSpot(entry.key.toDouble(), entry.value['income']);
                     }).toList(),
                     isCurved: true,
                     color: Colors.green,
                     barWidth: 4,
                     isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                        radius: 3,
+                        color: Colors.white,
+                        strokeWidth: 2,
+                        strokeColor: Colors.green,
+                      ),
+                    ),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
@@ -573,19 +648,25 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
                         end: Alignment.bottomCenter,
                       ),
                     ),
-                    dotData: const FlDotData(show: true),
                   ),
                   // Expense line
                   LineChartBarData(
                     spots: cashData.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final data = entry.value;
-                      return FlSpot(index.toDouble(), data['expense']);
+                      return FlSpot(entry.key.toDouble(), entry.value['expense']);
                     }).toList(),
                     isCurved: true,
                     color: Colors.red,
                     barWidth: 4,
                     isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                        radius: 3,
+                        color: Colors.white,
+                        strokeWidth: 2,
+                        strokeColor: Colors.red,
+                      ),
+                    ),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
@@ -594,48 +675,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
                         end: Alignment.bottomCenter,
                       ),
                     ),
-                    dotData: const FlDotData(show: true),
                   ),
                 ],
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= cashData.length) return const Text('');
-                        final int index = value.toInt();
-                        final label = DateFormat('MM/yy').format(cashData[index]['month']);
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                        );
-                      },
-                      reservedSize: 30,
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value == 0) return const Text('');
-                        return Text(
-                          format.format(value / 1000000).replaceAll('₫', '') + 'M',
-                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                        );
-                      },
-                      reservedSize: 35,
-                    ),
-                  ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.shade100, strokeWidth: 1),
-                ),
-                borderData: FlBorderData(show: false),
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
                     tooltipBgColor: Colors.blueGrey.shade800,
@@ -643,11 +684,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
                       return touchedSpots.map((spot) {
                         final isIncome = spot.barIndex == 0;
                         return LineTooltipItem(
-                          '${isIncome ? 'Thu' : 'Chi'}: ${format.format(spot.y)}',
-                          TextStyle(
-                            color: isIncome ? Colors.greenAccent : Colors.redAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          '${isIncome ? "Thu" : "Chi"}: ',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          children: [
+                            TextSpan(
+                              text: format.format(spot.y),
+                              style: TextStyle(
+                                color: isIncome ? Colors.greenAccent : Colors.redAccent,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         );
                       }).toList();
                     },
