@@ -188,33 +188,91 @@ class _UpdateScreenState extends State<UpdateScreen> {
   }
 
   Widget _buildFeaturesSection() {
+    final changelog = _updateService.currentChangelog;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Tính năng nổi bật', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('Lịch sử cập nhật', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
           ),
-          child: Column(
-            children: [
-              _buildFeatureItem('Quản lý Quỹ Dự Án', 'Theo dõi thu chi, chứng từ hình ảnh chuyên nghiệp.', Icons.savings_outlined, Colors.teal),
-              const SizedBox(height: 12),
-              _buildFeatureItem('Tính lương Tăng ca (OT)', 'Tự động tính lương theo hệ số 1.5, 1.8, 2.0.', Icons.access_time_outlined, Colors.blue),
-              const SizedBox(height: 12),
-              _buildFeatureItem('Lãi nợ lương', 'Tính lãi suất khi công ty nợ lương quá hạn.', Icons.account_balance_wallet_outlined, Colors.orange),
-              const SizedBox(height: 12),
-              _buildFeatureItem('Đồng bộ Google Sheets', 'Sao lưu và quản lý dữ liệu trên đám mây.', Icons.cloud_sync_outlined, Colors.green),
-              const SizedBox(height: 12),
-              _buildFeatureItem('Tính thuế TNCN 2026', 'Cập nhật biểu thuế mới nhất theo quy định.', Icons.calculate_outlined, Colors.indigo),
-            ],
-          ),
+          child: changelog != null && changelog.isNotEmpty
+              ? _buildChangelogContent(changelog)
+              : const Center(
+                  child: Text(
+                    'Kéo xuống để kiểm tra cập nhật',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
         ),
       ],
+    );
+  }
+  
+  Widget _buildChangelogContent(String changelog) {
+    // Parse changelog markdown-style content
+    final lines = changelog.split('\n');
+    final widgets = <Widget>[];
+    
+    for (var line in lines) {
+      if (line.trim().isEmpty) continue;
+      
+      if (line.startsWith('# ')) {
+        // Main title
+        widgets.add(Text(
+          line.substring(2),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+        ));
+        widgets.add(const SizedBox(height: 8));
+      } else if (line.startsWith('## ')) {
+        // Section header
+        widgets.add(const SizedBox(height: 8));
+        widgets.add(Text(
+          line.substring(3),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ));
+        widgets.add(const SizedBox(height: 4));
+      } else if (line.startsWith('### ')) {
+        // Sub-section with icon
+        final iconMatch = RegExp(r'^### (.+?) (.+)$').firstMatch(line);
+        if (iconMatch != null) {
+          widgets.add(const SizedBox(height: 6));
+          widgets.add(Text(
+            iconMatch.group(0)!.substring(4),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue.shade700),
+          ));
+          widgets.add(const SizedBox(height: 2));
+        }
+      } else if (line.startsWith('- ')) {
+        // Bullet point
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(left: 8, top: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('• ', style: TextStyle(fontSize: 12)),
+              Expanded(
+                child: Text(
+                  line.substring(2).replaceAll('**', ''),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
     );
   }
 

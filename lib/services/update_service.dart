@@ -31,6 +31,8 @@ class UpdateService extends ChangeNotifier {
   UpdateInfo? _updateInfo;
   String? _downloadedFilePath;
   DateTime? _lastCheckTime;
+  String? _currentChangelog;  // Changelog của version hiện tại hoặc version mới
+  String? _currentFileSize;   // File size để hiển thị
 
   DownloadStatus get status => _status;
   double get progress => _progress;
@@ -39,6 +41,8 @@ class UpdateService extends ChangeNotifier {
   bool get hasUpdate => _updateInfo != null;
   String? get downloadedFilePath => _downloadedFilePath;
   DateTime? get lastCheckTime => _lastCheckTime;
+  String? get currentChangelog => _currentChangelog;
+  String? get currentFileSize => _currentFileSize;
 
   final Dio _dio = Dio();
 
@@ -127,6 +131,10 @@ class UpdateService extends ChangeNotifier {
       final remoteVersionCode = metadata['versionCode'] as int?;
       final remoteVersionName = metadata['versionName'] as String?;
       final downloadUrl = metadata['downloadUrl'] as String?;
+      
+      // Always store changelog from metadata for display
+      _currentChangelog = metadata['changelog'] as String?;
+      _currentFileSize = metadata['fileSize'] as String?;
       
       if (remoteVersionCode == null || remoteVersionName == null || downloadUrl == null) {
         _status = DownloadStatus.error;

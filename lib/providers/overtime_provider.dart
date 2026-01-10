@@ -259,6 +259,12 @@ class OvertimeProvider with ChangeNotifier {
     await fetchEntries();
   }
 
+  /// Restore a previously deleted entry (for undo functionality)
+  Future<void> restoreEntry(OvertimeEntry entry) async {
+    await _storageService.insertEntry(entry);
+    await fetchEntries();
+  }
+
   // Debt Entry methods
   Future<void> addDebtEntry({
     required DateTime month,
