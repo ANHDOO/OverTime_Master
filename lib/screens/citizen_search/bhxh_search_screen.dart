@@ -4,6 +4,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_profile.dart';
 import '../../providers/overtime_provider.dart';
+import '../../services/citizen_lookup_service.dart';
+import '../../services/captcha_service.dart';
 
 class BhxhSearchScreen extends StatefulWidget {
   final CitizenProfile? profile;
@@ -18,8 +20,8 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
   final _idController = TextEditingController();
   final _captchaController = TextEditingController();
   bool _isLoading = false;
-  bool _isLoadingCaptcha = true;
-  late final WebViewController _headlessController;
+  bool _isLoadingCaptcha = false;
+  WebViewController? _headlessController;
   String? _captchaImageUrl;
   String _statusMessage = 'Đang kết nối...';
   bool _showResults = false;
@@ -35,32 +37,64 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
     if (widget.profile?.cccdId != null) {
       _idController.text = widget.profile!.cccdId!;
     }
-    _initHeadlessWebView();
+    _initFromService();
+  }
+
+  void _initFromService() {
+    final service = CitizenLookupService();
+    _headlessController = service.getController(LookupType.bhxh);
+    
+    // Check for background-solved captcha
+    final preSolved = service.getSolvedCaptcha(LookupType.bhxh);
+    if (preSolved != null && preSolved.isNotEmpty) {
+      setState(() {
+        _captchaController.text = preSolved;
+        _isLoadingCaptcha = false;
+        _statusMessage = 'Sẵn sàng tra cứu (Captcha đã giải ngầm)';
+      });
+      _tryAutoSubmit();
+    } else if (service.isReady(LookupType.bhxh)) {
+      _extractCaptcha();
+    } else {
+      _initHeadlessWebView();
+    }
+  }
+
+  void _tryAutoSubmit() {
+    if (widget.profile != null && (_bhxhController.text.isNotEmpty || _idController.text.isNotEmpty) && _captchaController.text.isNotEmpty) {
+      if (!_showResults && !_isLoading) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_isLoading) _performSearch();
+        });
+      }
+    }
   }
 
   void _initHeadlessWebView() {
+    if (_headlessController == null) return;
     setState(() {
       _isLoadingCaptcha = true;
       _captchaImageUrl = null;
-      _statusMessage = 'Đang kết nối BHXH Việt Nam...';
+      _statusMessage = 'Đang kết nối cổng BHXH...';
       _errorMessage = null;
     });
     
-    _headlessController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    _headlessController!
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (url) async {
             if (url.contains('baohiemxahoi.gov.vn')) {
+              await Future.delayed(const Duration(milliseconds: 500));
               await _extractCaptcha();
             }
           },
           onWebResourceError: (error) {
-            setState(() {
-              _errorMessage = 'Lỗi kết nối: ${error.description}';
-              _isLoadingCaptcha = false;
-            });
+            if (mounted) {
+              setState(() {
+                _errorMessage = 'Lỗi kết nối: ${error.description}';
+                _isLoadingCaptcha = false;
+              });
+            }
           },
         ),
       )
@@ -70,23 +104,40 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
   Future<void> _extractCaptcha() async {
     try {
       if (!mounted) return;
-      // BHXH captcha logic
-      final captchaSrc = await _headlessController.runJavaScriptReturningResult(
-        "document.querySelector('img[id*=\"captcha\"], img[src*=\"Captcha\Text\"]')?.src || ''"
+      // Many gov portals use 'imgCaptcha' or similar
+      final captchaSrc = await _headlessController!.runJavaScriptReturningResult(
+        "document.querySelector('img[id*=\"captcha\"], img[src*=\"Captcha\"], #imgCaptcha')?.src || ''"
       );
       
       final src = captchaSrc.toString().replaceAll('"', '');
       if (mounted) {
-        if (src.isNotEmpty && src != 'null') {
+        if (src.isNotEmpty && src != 'null' && src.contains('http')) {
           setState(() {
             _captchaImageUrl = src;
             _isLoadingCaptcha = false;
-            _statusMessage = 'Sẵn sàng tra cứu';
+            _statusMessage = 'Vui lòng nhập Captcha';
           });
+
+          // Attempt auto-solve
+          final solved = await CaptchaService().solveCaptchaFromWebView(_headlessController!);
+          if (solved != null && solved.isNotEmpty && mounted) {
+            setState(() {
+              _captchaController.text = solved;
+              _statusMessage = 'Mã xác thực đã được tự động điền';
+            });
+            _tryAutoSubmit();
+          }
+        } else {
+          // If no captcha found, maybe it's not required or invisible
+          setState(() {
+            _isLoadingCaptcha = false;
+            _statusMessage = 'Sẵn sàng tra cứu (Không yêu cầu Captcha)';
+          });
+          _tryAutoSubmit();
         }
       }
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Lỗi Captcha: $e');
+      if (mounted) setState(() => _errorMessage = 'Lỗi kiểm tra Captcha: $e');
     }
   }
 
@@ -108,22 +159,29 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
 
     try {
       // BHXH form handling
-      await _headlessController.runJavaScript('''
+      await _headlessController!.runJavaScript('''
         (function() {
-          const txtBHXH = document.querySelector('input[id*="maSoBHXH"]');
-          const txtCCCD = document.querySelector('input[id*="soCMND"]');
-          const txtCaptcha = document.querySelector('input[id*="captcha"]');
-          if(txtBHXH) txtBHXH.value = '${_bhxhController.text}';
-          if(txtCCCD) txtCCCD.value = '${_idController.text}';
-          if(txtCaptcha) txtCaptcha.value = '${_captchaController.text}';
-          const btn = document.querySelector('button[id*="btnTraCuu"], input[type="submit"]');
+          function setVal(selector, val) {
+            const el = document.querySelector(selector);
+            if (el) {
+              el.value = val;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }
+          // Selectors for tra-cuu-ho-gia-dinh.aspx
+          setVal('#HoTen', '${widget.profile?.label ?? ""}');
+          setVal('#CMND', '${_idController.text}');
+          setVal('input[id*="captcha"], #captcha', '${_captchaController.text}');
+          
+          const btn = document.querySelector('#btn-submit, button[type="submit"], .btn-search');
           if(btn) btn.click();
         })()
       ''');
 
       await Future.delayed(const Duration(seconds: 4));
 
-      final result = await _headlessController.runJavaScriptReturningResult('''
+      final result = await _headlessController!.runJavaScriptReturningResult('''
         (function() {
           const table = document.querySelector('table.table-result, .table-responsive table');
           if (!table) return JSON.stringify([]);
@@ -202,7 +260,7 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
                 backgroundColor: Colors.green[800],
                 minimumSize: const Size(double.infinity, 50),
               ),
-              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('TRA CỨU BHXH'),
+              child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('TRA CỨU NGAY'),
             ),
             if (_showResults) _buildResultsList(),
           ],
@@ -263,13 +321,50 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
 
   Widget _buildCaptcha() {
     if (_isLoadingCaptcha) return const CircularProgressIndicator();
-    return Row(
-      children: [
-        if (_captchaImageUrl != null) Image.network(_captchaImageUrl!, height: 40),
-        const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _captchaController, decoration: const InputDecoration(labelText: 'Captcha'))),
-        IconButton(onPressed: _initHeadlessWebView, icon: const Icon(Icons.refresh)),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_captchaImageUrl != null)
+                Container(
+                  height: 45,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(8)),
+                  child: Image.network(_captchaImageUrl!, fit: BoxFit.contain),
+                ),
+              const SizedBox(width: 12),
+              IconButton(
+                onPressed: () {
+                  CitizenLookupService().reset(LookupType.bhxh);
+                  _initFromService();
+                },
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _captchaController,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 3),
+            decoration: InputDecoration(
+              hintText: 'Nhập mã Captcha',
+              hintStyle: const TextStyle(fontSize: 14, letterSpacing: 0, fontWeight: FontWeight.normal),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.green[50]?.withOpacity(0.3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

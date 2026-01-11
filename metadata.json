@@ -1,8 +1,8 @@
 {
-  "versionName": "1.2.0",
-  "versionCode": 45,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.2.0/overtime_1.2.0.apk",
-  "changelog": "# Release Notes - v1.2.0+45\n\n## 🚀 Siêu cập nhật: Hệ sinh thái Tra cứu Native\n\nChúng tôi đã hoàn thiện trải nghiệm tra cứu các tiện ích công dân trực tiếp trong ứng dụng, không còn phụ thuộc vào giao diện web khó sử dụng.\n\n### 🚗 Tra cứu Phạt nguội (Bản sửa lỗi & Nâng cấp)\n- **Khắc phục lỗi kết nối:** Sử dụng cơ chế truyền tin mới giúp ổn định hơn trên các nhà mạng.\n- **Gợi ý từ Ví giấy tờ:** Tự động đề xuất biển số xe từ danh sách thẻ đã lưu để tiết kiệm thời gian nhập liệu.\n- **Giao diện mượt mà:** Hiển thị chi tiết vi phạm dưới dạng thẻ mở rộng (Expansion Card).\n\n### 🏦 Tra cứu Mã số thuế Native (MỚI)\n- Giao diện tra cứu MST cá nhân/doanh nghiệp hoàn toàn mới.\n- Tự động điền MST và CCCD từ Ví giấy tờ.\n- Hiển thị kết quả chi tiết: Tên người nộp thuế, Cơ quan thuế, Trạng thái hoạt động.\n\n### 🏥 Tra cứu BHXH / BHYT Native (MỚI)\n- Tra cứu mã số BHXH và quá trình đóng BHXH/BHYT trực tiếp.\n- Hỗ trợ lấy thông tin từ Ví giấy tờ cực kỳ nhanh chóng.\n\n### 🛠 Cải thiện UX/UI\n- Thêm cơ chế Timeout và báo lỗi thân thiện khi các trang web chính phủ phản hồi chậm.\n- Tối ưu hóa bộ nhớ và tốc độ xử lý khi scraping dữ liệu.\n",
-  "publishedAt": "2026-01-11T23:13:23.546022Z",
-  "fileSize": "22.0MB"
+  "versionName": "1.3.4",
+  "versionCode": 50,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.3.4/overtime_1.3.4.apk",
+  "changelog": "# Release Notes - v1.3.4+50 (Zero-Touch Search)\n\nBản cập nhật v1.3.4 mang đến trải nghiệm tra cứu \"không chạm\", giúp bạn tiết kiệm thời gian tối đa.\n\n### ⚡ Tra cứu Zero-Touch (Mới)\n- **Background Captcha Solver:** Hệ thống AI sẽ tự động giải mã captcha ngay từ khi bạn vừa mở Hub Tra cứu. Mã sẽ được chuẩn bị sẵn sàng trước khi bạn chọn hồ sơ.\n- **Auto-Submit Thông minh:** Khi bạn nhấn chọn một hồ sơ từ danh sách, App sẽ tự động điền thông tin và kích hoạt nút \"Tra cứu\" ngay lập tức.\n- **Trải nghiệm 1-chạm:** Giờ đây bạn chỉ cần chạm vào tên hồ sơ, App sẽ tự hoàn tất quá trình còn lại từ điền mã, giải captcha đến hiển thị kết quả.\n\n### 🏥 BHXH & MST (Cải thiện)\n- **Harden Connectivity:** Tối ưu hóa bộ nhận diện trình duyệt để tránh bị các cổng dịch vụ công từ chối kết nối.\n- **Auto-recovery:** Nếu captcha giải ngầm bị hết hạn, hệ thống sẽ tự động làm mới và giải lại mã mới mà không cần bạn can thiệp.\n\n---\n**Trạng thái:** Stable Performance Release\n**Version:** 1.3.4+50\n",
+  "publishedAt": "2026-01-12T00:22:53.098791Z",
+  "fileSize": "51.9MB"
 }

@@ -4,6 +4,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_profile.dart';
 import '../../providers/overtime_provider.dart';
+import '../../services/citizen_lookup_service.dart';
+import '../../services/captcha_service.dart';
 
 class TrafficFineSearchScreen extends StatefulWidget {
   final CitizenProfile? profile;
@@ -18,8 +20,8 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
   final _captchaController = TextEditingController();
   String _vehicleType = '1';
   bool _isLoading = false;
-  bool _isLoadingCaptcha = true;
-  late final WebViewController _headlessController;
+  bool _isLoadingCaptcha = false;
+  WebViewController? _headlessController;
   String? _captchaImageUrl;
   String _statusMessage = 'Đang khởi tạo...';
   bool _showResults = false;
@@ -33,36 +35,61 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
     if (widget.profile?.licensePlate != null) {
       _plateController.text = widget.profile!.licensePlate!;
     }
-    _initHeadlessWebView();
+    _initFromService();
+  }
+
+  void _initFromService() {
+    final service = CitizenLookupService();
+    _headlessController = service.getController(LookupType.phatNguoi);
+    
+    // Check for background-solved captcha
+    final preSolved = service.getSolvedCaptcha(LookupType.phatNguoi);
+    if (preSolved != null && preSolved.isNotEmpty) {
+      setState(() {
+        _captchaController.text = preSolved;
+        _isLoadingCaptcha = false;
+        _statusMessage = 'Sẵn sàng tra cứu (Captcha đã giải ngầm)';
+      });
+      _tryAutoSubmit();
+    } else if (service.isReady(LookupType.phatNguoi)) {
+      _extractCaptcha();
+    } else {
+      _initHeadlessWebView();
+    }
+  }
+
+  void _tryAutoSubmit() {
+    if (widget.profile != null && _plateController.text.isNotEmpty && _captchaController.text.isNotEmpty) {
+      if (!_showResults && !_isLoading) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_isLoading) _performSearch();
+        });
+      }
+    }
   }
 
   void _initHeadlessWebView() {
+    if (_headlessController == null) return;
+    
     setState(() {
       _isLoadingCaptcha = true;
       _captchaImageUrl = null;
       _statusMessage = 'Đang kết nối đến CSGT...';
       _errorMessage = null;
     });
-    
-    _headlessController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36") // Use desktop UA to avoid mobile redirection issues
+
+    _headlessController!
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (url) {
-            debugPrint('[TrafficFine] Page started: $url');
-          },
           onPageFinished: (url) async {
-            debugPrint('[TrafficFine] Page finished: $url');
             if (url.contains('csgt.vn')) {
               await _extractCaptcha();
             }
           },
           onWebResourceError: (error) {
-            debugPrint('[TrafficFine] WebView Error: ${error.description}');
             if (mounted) {
               setState(() {
-                _errorMessage = 'Lỗi kết nối: ${error.description}. Vui lòng kiểm tra internet.';
+                _errorMessage = 'Lỗi kết nối: ${error.description}';
                 _isLoadingCaptcha = false;
               });
             }
@@ -70,16 +97,6 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
         ),
       )
       ..loadRequest(Uri.parse('https://www.csgt.vn/tra-cuu-phat-nguoi-43.html'));
-      
-    // Timeout for connection
-    Future.delayed(const Duration(seconds: 15), () {
-      if (mounted && _isLoadingCaptcha && _errorMessage == null) {
-        setState(() {
-          _errorMessage = 'Yêu cầu quá hạn (Timeout). CSGT.vn phản hồi chậm, hãy thử lại.';
-          _isLoadingCaptcha = false;
-        });
-      }
-    });
   }
 
   Future<void> _extractCaptcha() async {
@@ -90,7 +107,7 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
       // Wait for page to fully render elements
       await Future.delayed(const Duration(seconds: 1));
       
-      final captchaSrc = await _headlessController.runJavaScriptReturningResult(
+      final captchaSrc = await _headlessController!.runJavaScriptReturningResult(
         "document.querySelector('img[src*=\"captcha\"]')?.src || ''"
       );
       
@@ -104,6 +121,16 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
             _isLoadingCaptcha = false;
             _statusMessage = 'Vui lòng nhập Captcha';
           });
+
+          // Attempt auto-solve
+          final solved = await CaptchaService().solveCaptchaFromWebView(_headlessController!);
+          if (solved != null && solved.isNotEmpty && mounted) {
+            setState(() {
+              _captchaController.text = solved;
+              _statusMessage = 'Mã xác thực đã được tự động điền';
+            });
+            _tryAutoSubmit();
+          }
         } else {
           _retryCount++;
           if (_retryCount < 3) {
@@ -148,7 +175,7 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
 
     try {
       // 1. Fill form and submit
-      await _headlessController.runJavaScript('''
+      await _headlessController!.runJavaScript('''
         document.getElementsByName('bienso')[0].value = '${_plateController.text}';
         document.getElementsByName('loaxe')[0].value = '$_vehicleType';
         document.getElementsByName('captcha')[0].value = '${_captchaController.text}';
@@ -159,7 +186,7 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
       await Future.delayed(const Duration(seconds: 3));
 
       // 3. Check for alerts (errors from server)
-      final errorCheck = await _headlessController.runJavaScriptReturningResult(
+      final errorCheck = await _headlessController!.runJavaScriptReturningResult(
         "document.querySelector('.alert-danger')?.innerText || ''"
       );
       final errorText = errorCheck.toString().replaceAll('"', '').trim();
@@ -175,7 +202,7 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
       }
 
       // 4. Scrape results
-      final result = await _headlessController.runJavaScriptReturningResult('''
+      final result = await _headlessController!.runJavaScriptReturningResult('''
         (function() {
           const rows = document.querySelectorAll('.table-responsive table tbody tr');
           let data = [];
@@ -407,28 +434,50 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
           if (_isLoadingCaptcha)
             const Center(child: Padding(padding: EdgeInsets.all(10.0), child: CircularProgressIndicator()))
           else if (_captchaImageUrl != null)
-            Row(
+            Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(8)),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(_captchaImageUrl!, height: 45, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _captchaController,
-                    decoration: InputDecoration(
-                      labelText: 'Nhập mã',
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      height: 55,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.network(
+                        _captchaImageUrl!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 40),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      onPressed: () {
+                        CitizenLookupService().reset(LookupType.phatNguoi);
+                        _initFromService();
+                      },
+                      icon: const Icon(Icons.refresh, size: 28),
+                      tooltip: 'Đổi mã khác',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _captchaController,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4),
+                  decoration: InputDecoration(
+                    hintText: 'Nhập mã xác thực',
+                    hintStyle: const TextStyle(fontSize: 16, letterSpacing: 0, fontWeight: FontWeight.normal),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                    filled: true,
+                    fillColor: Colors.blue[50]?.withOpacity(0.3),
                   ),
                 ),
-                IconButton(onPressed: _initHeadlessWebView, icon: const Icon(Icons.cached), tooltip: 'Đổi mã khác'),
               ],
             )
           else

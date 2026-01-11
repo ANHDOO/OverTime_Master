@@ -4,6 +4,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_profile.dart';
 import '../../providers/overtime_provider.dart';
+import '../../services/citizen_lookup_service.dart';
+import '../../services/captcha_service.dart';
 
 class MstSearchScreen extends StatefulWidget {
   final CitizenProfile? profile;
@@ -18,8 +20,8 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
   final _idController = TextEditingController();
   final _captchaController = TextEditingController();
   bool _isLoading = false;
-  bool _isLoadingCaptcha = true;
-  late final WebViewController _headlessController;
+  bool _isLoadingCaptcha = false;
+  WebViewController? _headlessController;
   String? _captchaImageUrl;
   String _statusMessage = 'Đang kết nối...';
   bool _showResults = false;
@@ -35,10 +37,41 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
     if (widget.profile?.cccdId != null) {
       _idController.text = widget.profile!.cccdId!;
     }
-    _initHeadlessWebView();
+    _initFromService();
+  }
+
+  void _initFromService() {
+    final service = CitizenLookupService();
+    _headlessController = service.getController(LookupType.mst);
+    
+    // Check for background-solved captcha
+    final preSolved = service.getSolvedCaptcha(LookupType.mst);
+    if (preSolved != null && preSolved.isNotEmpty) {
+      setState(() {
+        _captchaController.text = preSolved;
+        _isLoadingCaptcha = false;
+        _statusMessage = 'Sẵn sàng tra cứu (Captcha đã giải ngầm)';
+      });
+      _tryAutoSubmit();
+    } else if (service.isReady(LookupType.mst)) {
+      _extractCaptcha();
+    } else {
+      _initHeadlessWebView();
+    }
+  }
+
+  void _tryAutoSubmit() {
+    if (widget.profile != null && (_mstController.text.isNotEmpty || _idController.text.isNotEmpty) && _captchaController.text.isNotEmpty) {
+      if (!_showResults && !_isLoading) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && !_isLoading) _performSearch();
+        });
+      }
+    }
   }
 
   void _initHeadlessWebView() {
+    if (_headlessController == null) return;
     setState(() {
       _isLoadingCaptcha = true;
       _captchaImageUrl = null;
@@ -46,9 +79,7 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
       _errorMessage = null;
     });
     
-    _headlessController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    _headlessController!
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (url) async {
@@ -57,10 +88,12 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
             }
           },
           onWebResourceError: (error) {
-            setState(() {
-              _errorMessage = 'Lỗi kết nối: ${error.description}';
-              _isLoadingCaptcha = false;
-            });
+            if (mounted) {
+              setState(() {
+                _errorMessage = 'Lỗi kết nối: ${error.description}';
+                _isLoadingCaptcha = false;
+              });
+            }
           },
         ),
       )
@@ -71,7 +104,7 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
     try {
       if (!mounted) return;
       // The captcha image has an id or is the only img in a specific div
-      final captchaSrc = await _headlessController.runJavaScriptReturningResult(
+      final captchaSrc = await _headlessController!.runJavaScriptReturningResult(
         "document.querySelector('img[src*=\"captcha\"]')?.src || ''"
       );
       
@@ -83,6 +116,16 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
             _isLoadingCaptcha = false;
             _statusMessage = 'Vui lòng nhập Captcha';
           });
+          
+          // Attempt auto-solve
+          final solved = await CaptchaService().solveCaptchaFromWebView(_headlessController!);
+          if (solved != null && solved.isNotEmpty && mounted) {
+            setState(() {
+              _captchaController.text = solved;
+              _statusMessage = 'Mã xác thực đã được tự động điền';
+            });
+            _tryAutoSubmit();
+          }
         }
       }
     } catch (e) {
@@ -107,34 +150,78 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
     });
 
     try {
-      await _headlessController.runJavaScript('''
-        document.getElementById('mst').value = '${_mstController.text}';
-        document.getElementById('id_so_chung_minh').value = '${_idController.text}';
-        document.getElementById('captcha').value = '${_captchaController.text}';
-        document.querySelector('input[type="submit"], button[type="submit"], .btn_search').click();
+      await _headlessController!.runJavaScript('''
+        (function() {
+          function setInputValueBySelector(selector, val) {
+            const el = document.querySelector(selector);
+            if (el) {
+              el.value = val;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }
+          
+          // Ensure we are on the TNCN tab if possible
+          const tncnTab = document.querySelector('a[href*="mstcn.jsp"]');
+          if (tncnTab && !window.location.href.includes('mstcn.jsp')) {
+             tncnTab.click();
+             return;
+          }
+
+          setInputValueBySelector('input[name="mst"]', '${_mstController.text}');
+          // CCCD/CMND field is named 'cmt' and often hidden
+          setInputValueBySelector('input[name="cmt"]', '${_idController.text}');
+          setInputValueBySelector('#captcha', '${_captchaController.text}');
+          
+          const btn = document.querySelector('input[type="submit"], .subBtn');
+          if (btn) btn.click();
+        })()
       ''');
 
       await Future.delayed(const Duration(seconds: 3));
 
       // Scrape results - GDT results are usually in a table with class 'ta_border'
-      final result = await _headlessController.runJavaScriptReturningResult('''
+      // We also check for error messages like "Sai mã xác nhận"
+      final result = await _headlessController!.runJavaScriptReturningResult('''
         (function() {
-          const table = document.querySelector('.ta_border');
-          if (!table) return JSON.stringify({error: 'Không tìm thấy kết quả hoặc sai Captcha'});
-          const rows = table.querySelectorAll('tr');
-          if (rows.length < 2) return JSON.stringify({error: 'Không có dữ liệu'});
+          const errorMsg = document.querySelector('.error, .alert-danger, .error_text')?.innerText || '';
+          if (errorMsg.includes('mã xác nhận')) return JSON.stringify({error: 'Mã xác nhận không chính xác'});
+          if (errorMsg.isNotEmpty && errorMsg.length < 100) return JSON.stringify({error: errorMsg});
+
+          const table = document.querySelector('.ta_border, table[width="100%"]');
+          if (!table) {
+             const bodyText = document.body.innerText;
+             if (bodyText.includes('không tìm thấy')) return JSON.stringify({error: 'Không tìm thấy thông tin người nộp thuế'});
+             return JSON.stringify({error: 'Không tìm thấy bảng kết quả. Có thể do lỗi mạng hoặc sai Captcha.'});
+          }
           
-          const cells = rows[1].querySelectorAll('td');
+          const rows = table.querySelectorAll('tr');
+          if (rows.length < 2) return JSON.stringify({error: 'Website không trả về dữ liệu hàng.'});
+          
+          // GDT sometimes has multiple tables or nested ones. Let's find the one with actual data row
+          let dataRow = null;
+          for (let i = 1; i < rows.length; i++) {
+             const cells = rows[i].querySelectorAll('td');
+             if (cells.length >= 6) {
+                dataRow = cells;
+                break;
+             }
+          }
+
+          if (!dataRow) return JSON.stringify({error: 'Không tìm thấy hàng dữ liệu hợp lệ.'});
+
           return JSON.stringify({
-            'mst': cells[1]?.innerText.trim() || '',
-            'name': cells[2]?.innerText.trim() || '',
-            'agency': cells[3]?.innerText.trim() || '',
-            'id_card': cells[4]?.innerText.trim() || '',
-            'last_update': cells[5]?.innerText.trim() || '',
-            'status': cells[6]?.innerText.trim() || ''
+            'mst': dataRow[1]?.innerText.trim() || '',
+            'name': dataRow[2]?.innerText.trim() || '',
+            'agency': dataRow[3]?.innerText.trim() || '',
+            'id_card': dataRow[4]?.innerText.trim() || '',
+            'last_update': dataRow[5]?.innerText.trim() || '',
+            'status': dataRow[6]?.innerText.trim() || ''
           });
         })()
       ''');
+
+      debugPrint('[MST] Scrape Result: $result');
 
       final resultStr = result.toString();
       final cleanJson = resultStr.startsWith('"') && resultStr.endsWith('"')
@@ -143,13 +230,13 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
       
       final data = jsonDecode(cleanJson);
       if (mounted) {
-        if (data['error'] != null) {
+        if (data is Map && data['error'] != null) {
           setState(() {
             _errorMessage = data['error'];
             _isLoading = false;
           });
-          _initHeadlessWebView();
-        } else {
+          _initFromService(); // Refresh captcha
+        } else if (data is Map) {
           setState(() {
             _result = Map<String, String>.from(data);
             _showResults = true;
@@ -261,13 +348,50 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
 
   Widget _buildCaptcha() {
     if (_isLoadingCaptcha) return const CircularProgressIndicator();
-    return Row(
-      children: [
-        if (_captchaImageUrl != null) Image.network(_captchaImageUrl!, height: 40),
-        const SizedBox(width: 10),
-        Expanded(child: TextField(controller: _captchaController, decoration: const InputDecoration(labelText: 'Captcha'))),
-        IconButton(onPressed: _initHeadlessWebView, icon: const Icon(Icons.refresh)),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_captchaImageUrl != null)
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(8)),
+                  child: Image.network(_captchaImageUrl!, fit: BoxFit.contain),
+                ),
+              const SizedBox(width: 12),
+              IconButton(
+                onPressed: () {
+                  CitizenLookupService().reset(LookupType.mst);
+                  _initFromService();
+                },
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _captchaController,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 3),
+            decoration: InputDecoration(
+              hintText: 'Nhập mã xác thực',
+              hintStyle: const TextStyle(fontSize: 14, letterSpacing: 0, fontWeight: FontWeight.normal),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.red[50]?.withOpacity(0.3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

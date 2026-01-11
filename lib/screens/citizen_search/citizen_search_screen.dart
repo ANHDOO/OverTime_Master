@@ -4,6 +4,7 @@ import 'mst_search_screen.dart';
 import 'bhxh_search_screen.dart';
 import 'web_view_screen.dart';
 import '../../services/info_service.dart';
+import '../../services/citizen_lookup_service.dart';
 import 'package:intl/intl.dart';
 import '../../models/citizen_profile.dart';
 import '../../providers/overtime_provider.dart';
@@ -20,6 +21,16 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
   final InfoService _infoService = InfoService();
   final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
   CitizenProfile? _selectedProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-warm lookup pages in background
+    final lookupService = CitizenLookupService();
+    lookupService.prewarm(LookupType.phatNguoi);
+    lookupService.prewarm(LookupType.mst);
+    lookupService.prewarm(LookupType.bhxh);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -520,6 +531,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
     final taxController = TextEditingController(text: profile?.taxId);
     final plateController = TextEditingController(text: profile?.licensePlate);
     final cccdController = TextEditingController(text: profile?.cccdId);
+    final bhxhController = TextEditingController(text: profile?.bhxhId);
 
     showDialog(
       context: context,
@@ -545,6 +557,10 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
                 controller: cccdController,
                 decoration: const InputDecoration(labelText: 'Số CCCD'),
               ),
+              TextField(
+                controller: bhxhController,
+                decoration: const InputDecoration(labelText: 'Mã số BHXH'),
+              ),
             ],
           ),
         ),
@@ -568,6 +584,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
                 taxId: taxController.text,
                 licensePlate: plateController.text,
                 cccdId: cccdController.text,
+                bhxhId: bhxhController.text,
               );
 
               final provider = Provider.of<OvertimeProvider>(context, listen: false);

@@ -21,12 +21,19 @@ Mỗi yêu cầu PHẢI được đánh giá qua:
 ### Điều 3: Cơ chế hội đồng
 Khi 2+ chiều có mức độ ảnh hưởng cao/ngang nhau → Kích hoạt Multi-Agent Discussion.
 
+### Điều 4: Nguyên tắc Tập trung (Focus & Context)
+AI Agent PHẢI:
+- Luôn bám sát ngữ cảnh dự án `OverTime`.
+- Không trả lời lan man, không đề xuất các tính năng nằm ngoài phạm vi yêu cầu trừ khi có lý lẽ kỹ thuật chặt chẽ.
+- Mọi phản hồi phải dựa trên dữ liệu thực tế từ codebase hiện tại.
+
 ---
 
 ## CHƯƠNG II: QUY TRÌNH 5 BƯỚC BẮT BUỘC
 
 ### BƯỚC 1: TIẾP NHẬN
 - **PHẢI**: Đọc `PROJECT_STATE.md`, xác định loại yêu cầu (Feature/Bug/Refactor/Optimize).
+- **KIỂM TRA**: Đối chiếu yêu cầu với Điều 4 (Nguyên tắc Tập trung). Nếu yêu cầu nằm ngoài phạm vi hoặc không rõ ràng, PHẢI yêu cầu làm rõ trước khi tiếp tục.
 - **CẤM**: Bắt đầu code mà không phân tích.
 
 ### BƯỚC 2: PHÂN TÍCH ẢNH HƯỞNG

@@ -12,3 +12,14 @@
 
 # Fix for Missing type parameter
 -keep class * extends com.google.gson.reflect.TypeToken
+
+# Google ML Kit rules
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
+-keep class com.google.android.gms.common.internal.safeparcel.SafeParcelable { *; }
+-keep class * extends com.google.android.gms.common.internal.safeparcel.SafeParcelable
+-keep class com.google.mlkit.vision.text.** { *; }
+
+# Ignore missing optional ML Kit language models
+-dontwarn com.google.mlkit.vision.text.**
+-dontwarn com.google.android.gms.internal.mlkit_vision_text_common.**
