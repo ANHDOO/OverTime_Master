@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/overtime_entry.dart';
 import '../models/debt_entry.dart';
 import '../models/cash_transaction.dart';
+import '../models/citizen_profile.dart';
 import '../services/storage_service.dart';
 import '../services/settings_service.dart';
 import '../services/google_sheets_service.dart';
@@ -19,6 +20,7 @@ class OvertimeProvider with ChangeNotifier {
   List<OvertimeEntry> _entries = [];
   List<DebtEntry> _debtEntries = [];
   List<CashTransaction> _cashTransactions = [];
+  List<CitizenProfile> _citizenProfiles = [];
   double _hourlyRate = 85275.0;
   double? _monthlySalary = 18000000.0;
   double _allowance = 945000.0;
@@ -30,6 +32,7 @@ class OvertimeProvider with ChangeNotifier {
   List<OvertimeEntry> get entries => _entries;
   List<DebtEntry> get debtEntries => _debtEntries;
   List<CashTransaction> get cashTransactions => _cashTransactions;
+  List<CitizenProfile> get citizenProfiles => _citizenProfiles;
   double get hourlyRate => _hourlyRate;
   double? get monthlySalary => _monthlySalary;
   double get allowance => _allowance;
@@ -90,6 +93,7 @@ class OvertimeProvider with ChangeNotifier {
     _entries = await _storageService.getAllEntries();
     _debtEntries = await _storageService.getAllDebtEntries();
     _cashTransactions = await _storageService.getAllCashTransactions();
+    _citizenProfiles = await _storageService.getAllCitizenProfiles();
     _isLoading = false;
 
 
@@ -524,5 +528,21 @@ class OvertimeProvider with ChangeNotifier {
     }
 
     return trends;
+  }
+
+  // Citizen Profile methods
+  Future<void> addCitizenProfile(CitizenProfile profile) async {
+    await _storageService.insertCitizenProfile(profile);
+    await fetchEntries();
+  }
+
+  Future<void> updateCitizenProfile(CitizenProfile profile) async {
+    await _storageService.updateCitizenProfile(profile);
+    await fetchEntries();
+  }
+
+  Future<void> deleteCitizenProfile(int id) async {
+    await _storageService.deleteCitizenProfile(id);
+    await fetchEntries();
   }
 }
