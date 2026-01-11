@@ -96,18 +96,22 @@ def run_flutter_analyze():
         shell=True
     )
     
+    # Ensure we have strings even if output is None
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+
     # In kết quả
-    if result.stdout:
-        log(result.stdout)
-    if result.stderr:
-        log(result.stderr)
+    if stdout:
+        log(stdout)
+    if stderr:
+        log(stderr)
     
     # Đếm số lỗi và warning - sử dụng pattern chính xác
     # Flutter analyze format: "severity - message - file:line - code"
     import re
-    error_matches = re.findall(r'^\s*error\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
-    warning_matches = re.findall(r'^\s*warning\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
-    info_matches = re.findall(r'^\s*info\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
+    error_matches = re.findall(r'^\s*error\s+-', stdout, re.MULTILINE | re.IGNORECASE)
+    warning_matches = re.findall(r'^\s*warning\s+-', stdout, re.MULTILINE | re.IGNORECASE)
+    info_matches = re.findall(r'^\s*info\s+-', stdout, re.MULTILINE | re.IGNORECASE)
     
     error_count = len(error_matches)
     warning_count = len(warning_matches)

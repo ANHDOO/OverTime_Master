@@ -56,6 +56,7 @@
 - [ ] **Báo cáo nâng cao:** Thêm biểu đồ so sánh thu nhập giữa các tháng/năm.
 - [ ] **Quản lý mục tiêu:** Đặt mục tiêu thu nhập tháng và theo dõi tiến độ.
 - [ ] **Widget:** Thêm widget màn hình chính để xem nhanh tổng giờ OT trong tháng.
+- [x] **Citizen Search Hub (Phase 1):** Framework tra cứu và tích hợp thông tin công dân.
 
 ### Giai đoạn 3: Thông minh hóa
 - [ ] **AI Assistant:** Tích hợp chatbot hỗ trợ giải đáp thắc mắc về lương, thuế.

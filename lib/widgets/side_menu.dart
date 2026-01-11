@@ -6,6 +6,7 @@ import '../screens/settings/backup_screen.dart';
 import '../screens/settings/notifications_screen.dart';
 import '../screens/settings/security_screen.dart';
 import '../screens/settings/update_screen.dart';
+import '../screens/citizen_search/citizen_search_screen.dart';
 import '../services/update_service.dart';
 
 typedef OnSelectTab = void Function(int index);
@@ -85,6 +86,10 @@ class SideMenu extends StatelessWidget {
                     _buildNavItem(context, icon: Icons.calculate_outlined, label: 'Tính thuế TNCN', index: 3, onTap: () {
                       onSelectTab(3);
                       Navigator.pop(context);
+                    }),
+                    _buildNavItem(context, icon: Icons.person_search_outlined, label: 'Tra cứu công dân', onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CitizenSearchScreen()));
                     }),
                     const Divider(),
                     _buildNavItem(context, icon: Icons.settings, label: 'Cài đặt mức lương', onTap: () {
