@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'traffic_fine_search_screen.dart';
+import 'mst_search_screen.dart';
+import 'bhxh_search_screen.dart';
 import 'web_view_screen.dart';
 import '../../services/info_service.dart';
 import 'package:intl/intl.dart';
@@ -224,14 +226,17 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
             ),
           );
         } else if (isTax) {
-          // Future: Implement Native MST Search
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CitizenWebViewScreen(
-                title: 'Tra cứu Thuế',
-                url: 'https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp',
-              ),
+              builder: (context) => MstSearchScreen(profile: profile),
+            ),
+          );
+        } else if (profile.bhxhId != null && profile.bhxhId!.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BhxhSearchScreen(profile: profile),
             ),
           );
         }
@@ -348,10 +353,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const CitizenWebViewScreen(
-                    title: 'Tra cứu Thuế',
-                    url: 'https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp',
-                  ),
+                  builder: (context) => const MstSearchScreen(),
                 ),
               );
             },
@@ -366,10 +368,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const CitizenWebViewScreen(
-                    title: 'Tra cứu BHXH',
-                    url: 'https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx',
-                  ),
+                  builder: (context) => const BhxhSearchScreen(),
                 ),
               );
             },
