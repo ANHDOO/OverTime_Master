@@ -1,8 +1,8 @@
 {
-  "versionName": "1.0.7",
-  "versionCode": 39,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.7/overtime_1.0.7.apk",
-  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.7+39\n\n## Có gì mới\n- **Tiện ích công dân (Citizen Search Hub):** Ra mắt phân hệ hoàn toàn mới giúp tra cứu thông tin nhanh chóng.\n    - **Tra cứu Thuế:** Kiểm tra mã số thuế cá nhân trực tiếp từ Tổng cục Thuế.\n    - **Phạt nguội:** Tra cứu vi phạm giao thông từ dữ liệu Cục Cảnh sát giao thông.\n    - **Dữ liệu thời gian thực:** Cập nhật Giá Vàng SJC, Tỷ giá ngoại tệ (USD/VND) và Giá Xăng dầu ngay trong app.\n- **WebView thông minh:** Tích hợp trình duyệt nội bộ tối ưu để truy cập các cổng thông tin chính phủ an toàn và bảo mật.\n\n## Cải tiến\n- Thêm lối tắt truy cập nhanh trong Menu chính.\n- Tối ưu hóa hiệu năng tải dữ liệu từ các nguồn API công khai.\n- Sửa lỗi tương thích WebView trên một số dòng máy Android cũ.\n",
-  "publishedAt": "2026-01-11T22:10:13.557582Z",
+  "versionName": "1.0.8",
+  "versionCode": 40,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.8/overtime_1.0.8.apk",
+  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.8+40\n\n## Có gì mới\n- **Quản lý Hồ sơ cá nhân (Citizen Profiles):** \n    - Cho phép lưu và quản lý danh sách hồ sơ (Mã số thuế, Biển số xe, CCCD).\n    - Tự động ghi nhớ và chọn nhanh thông tin khi tra cứu.\n    - Hỗ trợ thêm, sửa, xóa hồ sơ cá nhân linh hoạt.\n- **Hoàn thiện Citizen Hub:** \n    - Đồng nhất giao diện tra cứu Thuế, Phạt nguội, BHXH.\n    - Cải tiến tốc độ tải trang WebView.\n\n## Kỹ thuật\n- **Nâng cấp Database:** Chuyển đổi sang Schema v9 để hỗ trợ lưu trữ hồ sơ.\n- **Tối ưu Build:** Cải tiến quy trình đóng gói ứng dụng, tận dụng tối đa RAM hệ thống.\n- **Auto-check Update:** Cập nhật metadata để hệ thống báo update nhận diện bản 1.0.8.\n",
+  "publishedAt": "2026-01-11T22:18:45.811330Z",
   "fileSize": "21.9MB"
 }

@@ -126,6 +126,21 @@ class StorageService {
             await db.execute("ALTER TABLE cash_transactions ADD COLUMN payment_type TEXT DEFAULT 'Hoá đơn giấy'");
           } catch (_) {}
         }
+        if (oldVersion < 9) {
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS citizen_profiles(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT,
+                tax_id TEXT,
+                license_plate TEXT,
+                cccd_id TEXT,
+                bhxh_id TEXT,
+                is_default INTEGER DEFAULT 0
+              )
+            ''');
+          } catch (_) {}
+        }
       },
     );
   }

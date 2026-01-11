@@ -86,18 +86,21 @@ class OvertimeProvider with ChangeNotifier {
   Future<void> fetchEntries() async {
     _isLoading = true;
     notifyListeners();
-    _hourlyRate = await _settingsService.getHourlyRate();
-    _monthlySalary = await _settingsService.getMonthlySalary();
-    _allowance = await _settingsService.getAllowance();
-    _leaveDays = await _settingsService.getLeaveDays();
-    _entries = await _storageService.getAllEntries();
-    _debtEntries = await _storageService.getAllDebtEntries();
-    _cashTransactions = await _storageService.getAllCashTransactions();
-    _citizenProfiles = await _storageService.getAllCitizenProfiles();
-    _isLoading = false;
-
-
-    notifyListeners();
+    try {
+      _hourlyRate = await _settingsService.getHourlyRate();
+      _monthlySalary = await _settingsService.getMonthlySalary();
+      _allowance = await _settingsService.getAllowance();
+      _leaveDays = await _settingsService.getLeaveDays();
+      _entries = await _storageService.getAllEntries();
+      _debtEntries = await _storageService.getAllDebtEntries();
+      _cashTransactions = await _storageService.getAllCashTransactions();
+      _citizenProfiles = await _storageService.getAllCitizenProfiles();
+    } catch (e) {
+      debugPrint('Error fetching entries: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
     
     // Silent update check
     checkUpdateSilently();
