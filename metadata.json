@@ -1,8 +1,8 @@
 {
-  "versionName": "1.0.9",
-  "versionCode": 41,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.9/overtime_1.0.9.apk",
-  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.9+41\n\n## Sửa lỗi (Bug Fixes)\n- **Sửa lỗi Dashboard treo (vòng tròn quay vô tận):** Khắc phục lỗi không khởi tạo được bảng dữ liệu hồ sơ công dân khi nâng cấp từ phiên bản cũ.\n- **Cải thiện tính ổn định:** Thêm cơ chế xử lý lỗi khi tải dữ liệu, đảm bảo ứng dụng không bao giờ bị treo ở màn hình loading.\n\n## Tính năng\n- Giữ nguyên các tính năng Tra cứu công dân và Quản lý hồ sơ từ bản 1.0.8.\n",
-  "publishedAt": "2026-01-11T22:30:50.394025Z",
+  "versionName": "1.1.5",
+  "versionCode": 43,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.1.5/overtime_1.1.5.apk",
+  "changelog": "# Release Notes - v1.1.5+43\n\n## 🌟 Siêu cập nhật: Ví giấy tờ & Tra cứu Native (VNeID Style)\nTính năng \"Tiện ích công dân\" đã được lột xác hoàn toàn với phong cách thiết kế hiện đại, lấy cảm hứng từ ứng dụng VNeID.\n\n### 💳 Ví giấy tờ Cá nhân (Citizen Wallet)\n- Giao diện thẻ (Card) sang trọng cho các loại giấy tờ: Mã số thuế, Biển số xe, CCCD.\n- Hỗ trợ lưu trữ cục bộ bảo mật, sửa lỗi không lưu được thông tin trên một số thiết bị.\n- Truy cập nhanh các dịch vụ tra cứu chỉ với 1 chạm từ thẻ.\n\n### 🚗 Tra cứu Phạt nguội Native (Beta)\n- Giao diện nhập liệu trực tiếp trong app, không cần phải thao tác thủ công trên trình duyệt web.\n- Tự động điền thông tin từ Ví giấy tờ.\n- **Cơ chế thông minh:** Tự động lấy mã Captcha hiển thị ngay tại app để người dùng xác thực.\n- Hiển thị kết quả vi phạm dưới dạng danh sách Native đẹp mắt và dễ đọc.\n\n### 📈 Cập nhật Dữ liệu Thị trường (Tháng 1/2026)\n- Điều chỉnh giá Vàng SJC sát thực tế (~160 triệu/lượng).\n- Cập nhật tỷ giá USD/VND (~26.300 VND/USD).\n- Cập nhật giá xăng RON 95 mới nhất.\n\n### 🛠 Cải thiện Hệ thống\n- Nâng cấp Database lên Version 10 để đảm bảo tính ổn định của dữ liệu.\n- Tối ưu hóa hiệu năng và sửa các lỗi hiển thị nhỏ.\n",
+  "publishedAt": "2026-01-11T22:46:16.906002Z",
   "fileSize": "21.9MB"
 }

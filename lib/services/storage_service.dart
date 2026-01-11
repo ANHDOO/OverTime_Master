@@ -22,7 +22,7 @@ class StorageService {
     String path = join(await getDatabasesPath(), 'overtime.db');
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE overtime(
@@ -127,6 +127,22 @@ class StorageService {
           } catch (_) {}
         }
         if (oldVersion < 9) {
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS citizen_profiles(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT,
+                tax_id TEXT,
+                license_plate TEXT,
+                cccd_id TEXT,
+                bhxh_id TEXT,
+                is_default INTEGER DEFAULT 0
+              )
+            ''');
+          } catch (_) {}
+        }
+        // Force create for version 10 as fallback for broken v9 installs
+        if (oldVersion < 10) {
           try {
             await db.execute('''
               CREATE TABLE IF NOT EXISTS citizen_profiles(
