@@ -1,8 +1,8 @@
 {
-  "versionName": "1.0.8",
-  "versionCode": 40,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.8/overtime_1.0.8.apk",
-  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.8+40\n\n## Có gì mới\n- **Quản lý Hồ sơ cá nhân (Citizen Profiles):** \n    - Cho phép lưu và quản lý danh sách hồ sơ (Mã số thuế, Biển số xe, CCCD).\n    - Tự động ghi nhớ và chọn nhanh thông tin khi tra cứu.\n    - Hỗ trợ thêm, sửa, xóa hồ sơ cá nhân linh hoạt.\n- **Hoàn thiện Citizen Hub:** \n    - Đồng nhất giao diện tra cứu Thuế, Phạt nguội, BHXH.\n    - Cải tiến tốc độ tải trang WebView.\n\n## Kỹ thuật\n- **Nâng cấp Database:** Chuyển đổi sang Schema v9 để hỗ trợ lưu trữ hồ sơ.\n- **Tối ưu Build:** Cải tiến quy trình đóng gói ứng dụng, tận dụng tối đa RAM hệ thống.\n- **Auto-check Update:** Cập nhật metadata để hệ thống báo update nhận diện bản 1.0.8.\n",
-  "publishedAt": "2026-01-11T22:18:45.811330Z",
+  "versionName": "1.0.9",
+  "versionCode": 41,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.9/overtime_1.0.9.apk",
+  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.9+41\n\n## Sửa lỗi (Bug Fixes)\n- **Sửa lỗi Dashboard treo (vòng tròn quay vô tận):** Khắc phục lỗi không khởi tạo được bảng dữ liệu hồ sơ công dân khi nâng cấp từ phiên bản cũ.\n- **Cải thiện tính ổn định:** Thêm cơ chế xử lý lỗi khi tải dữ liệu, đảm bảo ứng dụng không bao giờ bị treo ở màn hình loading.\n\n## Tính năng\n- Giữ nguyên các tính năng Tra cứu công dân và Quản lý hồ sơ từ bản 1.0.8.\n",
+  "publishedAt": "2026-01-11T22:30:50.394025Z",
   "fileSize": "21.9MB"
 }

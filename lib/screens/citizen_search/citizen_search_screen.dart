@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'traffic_fine_search_screen.dart';
 import 'web_view_screen.dart';
 import '../../services/info_service.dart';
 import 'package:intl/intl.dart';
@@ -23,25 +24,30 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
     final theme = Theme.of(context);
     
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Tiện ích công dân'),
+        title: const Text('Ví giấy tờ & Tiện ích'),
         elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildRealtimeInfo(theme),
-            _buildProfileSection(context, theme),
+            const SizedBox(height: 16),
+            _buildWalletSection(context, theme),
+            const SizedBox(height: 16),
             Padding(
-              padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Text(
-                'Tra cứu hành chính',
+                'Tra cứu Native (VNeID Style)',
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
-            _buildSearchGrid(context),
-            const SizedBox(height: 24),
+            _buildActionGrid(context, theme),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -51,9 +57,13 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
   Widget _buildRealtimeInfo(ThemeData theme) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: theme.primaryColor.withOpacity(0.05),
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
       ),
       child: Column(
         children: [
@@ -64,162 +74,347 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
               children: [
                 _buildInfoCard(
                   'Giá Vàng SJC',
-                  '85.000.000',
-                  Icons.auto_graph,
-                  Colors.orange,
+                  '159.800',
+                  Icons.trending_up,
+                  Colors.orange[800]!,
+                  'triệu đồng/lượng',
                 ),
                 _buildInfoCard(
                   'USD/VND',
-                  '25.450',
+                  '26.387',
                   Icons.currency_exchange,
-                  Colors.green,
+                  Colors.green[700]!,
+                  'VND/USD',
                 ),
                 _buildInfoCard(
                   'Xăng RON 95',
-                  '22.700',
+                  '18.560',
                   Icons.local_gas_station,
-                  Colors.blue,
+                  Colors.blue[700]!,
+                  'VND/lít',
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Cập nhật: 11/01/2026',
+            style: TextStyle(fontSize: 10, color: Colors.grey[500]),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withOpacity(0.2)),
+  Widget _buildInfoCard(String title, String value, IconData icon, Color color, String unit) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.1)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 16, color: color),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          ),
+          Text(unit, style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+        ],
       ),
     );
   }
 
-  Widget _buildSearchGrid(BuildContext context) {
-    final searchItems = [
-      {
-        'title': 'Tra cứu Thuế',
-        'icon': Icons.account_balance,
-        'color': Colors.red,
-        'url': 'https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp',
-        'subtitle': 'Mã số thuế cá nhân'
-      },
-      {
-        'title': 'Phạt nguội',
-        'icon': Icons.directions_car,
-        'color': Colors.blue,
-        'url': 'https://www.csgt.vn/tra-cuu-phat-nguoi-43.html',
-        'subtitle': 'Tra cứu vi phạm GT'
-      },
-      {
-        'title': 'BHXH/BHYT',
-        'icon': Icons.health_and_safety,
-        'color': Colors.green,
-        'url': 'https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx',
-        'subtitle': 'Thông tin bảo hiểm'
-      },
-      {
-        'title': 'Căn cước/ĐDDT',
-        'icon': Icons.badge,
-        'color': Colors.teal,
-        'url': 'https://dichvucong.dancuquocgia.gov.vn/',
-        'subtitle': 'Cổng dịch vụ công'
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.5,
-      ),
-      itemCount: searchItems.length,
-      itemBuilder: (context, index) {
-        final item = searchItems[index];
-        return InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CitizenWebViewScreen(
-                  title: item['title'] as String,
-                  url: item['url'] as String,
-                ),
-              ),
-            );
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildWalletSection(BuildContext context, ThemeData theme) {
+    return Consumer<OvertimeProvider>(
+      builder: (context, provider, child) {
+        final profiles = provider.citizenProfiles;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: (item['color'] as Color).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(item['icon'] as IconData, color: item['color'] as Color, size: 24),
-                  ),
-                  const SizedBox(height: 12),
                   Text(
-                    item['title'] as String,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    'Ví giấy tờ cá nhân',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    item['subtitle'] as String,
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  IconButton(
+                    onPressed: () => _showProfileDialog(context),
+                    icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
                   ),
                 ],
               ),
             ),
-          ),
+            if (profiles.isEmpty)
+              _buildEmptyWallet(theme)
+            else
+              SizedBox(
+                height: 180,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: profiles.length,
+                  itemBuilder: (context, index) {
+                    final profile = profiles[index];
+                    return _buildDocumentCard(context, profile, theme);
+                  },
+                ),
+              ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildEmptyWallet(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.account_balance_wallet_outlined, size: 48, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          const Text('Chưa có giấy tờ được lưu', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(
+            'Lưu Mã số thuế, Biển số xe... để tra cứu 1 chạm',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentCard(BuildContext context, CitizenProfile profile, ThemeData theme) {
+    final isTax = profile.taxId != null && profile.taxId!.isNotEmpty;
+    final isPlate = profile.licensePlate != null && profile.licensePlate!.isNotEmpty;
+    
+    final color = isPlate ? Colors.blue[800]! : (isTax ? Colors.red[800]! : Colors.teal[800]!);
+    
+    return InkWell(
+      onTap: () {
+        if (isPlate) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TrafficFineSearchScreen(profile: profile),
+            ),
+          );
+        } else if (isTax) {
+          // Future: Implement Native MST Search
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CitizenWebViewScreen(
+                title: 'Tra cứu Thuế',
+                url: 'https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp',
+              ),
+            ),
+          );
+        }
+      },
+      child: Container(
+        width: 280,
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(Icons.shield, size: 120, color: Colors.white.withOpacity(0.1)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      profile.label.toUpperCase(),
+                      style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                    ),
+                    const Icon(Icons.nfc, color: Colors.white54, size: 18),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  isPlate ? (profile.licensePlate ?? '') : (isTax ? (profile.taxId ?? '') : (profile.cccdId ?? '')),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                    fontFamily: 'Courier',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isPlate ? 'Biển số xe' : (isTax ? 'Mã số thuế' : 'Số định danh'),
+                  style: const TextStyle(color: Colors.white60, fontSize: 10),
+                ),
+                const Spacer(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('OverTime Wallet', style: TextStyle(color: Colors.white38, fontSize: 9)),
+                    InkWell(
+                      onTap: () => _showProfileDialog(context, profile: profile),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.edit, color: Colors.white, size: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildActionGrid(BuildContext context, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          _buildActionItem(
+            'Phạt nguội (Bản Native)',
+            'Kiểm tra vi phạm giao thông toàn quốc',
+            Icons.directions_car,
+            Colors.blue,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TrafficFineSearchScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildActionItem(
+            'Tra cứu Mã số thuế',
+            'Xác thực thông tin người nộp thuế',
+            Icons.account_balance,
+            Colors.red,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CitizenWebViewScreen(
+                    title: 'Tra cứu Thuế',
+                    url: 'https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp',
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildActionItem(
+            'BHXH / BHYT',
+            'Tra cứu quá trình đóng & thẻ BHYT',
+            Icons.health_and_safety,
+            Colors.green,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CitizenWebViewScreen(
+                    title: 'Tra cứu BHXH',
+                    url: 'https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx',
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionItem(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
+          ],
+        ),
+      ),
     );
   }
 
