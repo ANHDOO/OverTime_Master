@@ -24,8 +24,3 @@ Cập nhật `version` trong `pubspec.yaml` (ví dụ: `1.0.6+36`).
 Sau khi đã kiểm tra và cập nhật thông tin, chạy script deploy full:
 // turbo
 - Lệnh: `python tool/deploy_overtime.py`
-
-### 5. Kiểm tra Git
-Đảm bảo các thay đổi về code và release notes đã được push lên đúng repo:
-- Code: `OverTime_Master`
-- Metadata: `OverTime_Updates`

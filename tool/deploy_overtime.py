@@ -96,18 +96,22 @@ def run_flutter_analyze():
         shell=True
     )
     
+    # Ensure we have strings even if output is None
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+
     # In kết quả
-    if result.stdout:
-        log(result.stdout)
-    if result.stderr:
-        log(result.stderr)
+    if stdout:
+        log(stdout)
+    if stderr:
+        log(stderr)
     
     # Đếm số lỗi và warning - sử dụng pattern chính xác
     # Flutter analyze format: "severity - message - file:line - code"
     import re
-    error_matches = re.findall(r'^\s*error\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
-    warning_matches = re.findall(r'^\s*warning\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
-    info_matches = re.findall(r'^\s*info\s+-', result.stdout, re.MULTILINE | re.IGNORECASE)
+    error_matches = re.findall(r'^\s*error\s+-', stdout, re.MULTILINE | re.IGNORECASE)
+    warning_matches = re.findall(r'^\s*warning\s+-', stdout, re.MULTILINE | re.IGNORECASE)
+    info_matches = re.findall(r'^\s*info\s+-', stdout, re.MULTILINE | re.IGNORECASE)
     
     error_count = len(error_matches)
     warning_count = len(warning_matches)
@@ -129,14 +133,43 @@ def run_flutter_analyze():
 
 # === BUILD ===
 
+def should_skip_build():
+    """Kiểm tra xem file APK hiện tại có mới hơn source code không"""
+    if not os.path.exists(APK_PATH):
+        return False
+    
+    apk_mtime = os.path.getmtime(APK_PATH)
+    
+    # Kiểm tra pubspec.yaml và thư mục lib
+    source_paths = [PUBSPEC_PATH, 'lib']
+    for p in source_paths:
+        if os.path.isfile(p):
+            if os.path.getmtime(p) > apk_mtime:
+                return False
+        else:
+            for root, dirs, files in os.walk(p):
+                for f in files:
+                    if f.endswith('.dart'):
+                        if os.path.getmtime(os.path.join(root, f)) > apk_mtime:
+                            return False
+    return True
+
 def build_apk():
     """Build APK release"""
+    if should_skip_build():
+        log("\n[i] APK hien tai da moi nhat. Bo qua buoc build de tiet kiem thoi gian.")
+        return True
+
     log("\n[+] Building APK...")
     try:
-        subprocess.run(['flutter', 'clean'], check=True, shell=True)
+        # User co 32GB RAM, chung ta se bo qua flutter clean de tan dung cache
+        # Neu muon clean, hay chay manual truoc.
         
         result = subprocess.run(
-            ['flutter', 'build', 'apk', '--target-platform', 'android-arm64', '--release'],
+            ['flutter', 'build', 'apk', 
+             '--target-platform', 'android-arm64', 
+             '--release',
+             '--no-pub'], # Bo qua pub get vi da check ben ngoai
             check=True,
             shell=True
         )

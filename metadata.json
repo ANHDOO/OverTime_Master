@@ -1,8 +1,8 @@
 {
-  "versionName": "1.0.6",
-  "versionCode": 38,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.0.6/overtime_1.0.6.apk",
-  "changelog": "# Nhật ký thay đổi - Phiên bản 1.0.6+38\n\n## Có gì mới\n- **Biểu đồ Đường Premium:** Nâng cấp giao diện thống kê với biểu đồ đường cong mềm mại, hiệu ứng gradient và tooltip tương tác cho cả Tăng ca và Thu chi.\n- **Sửa lỗi Silent Sign-In:** Chuyển logic đăng nhập Google Drive vào lúc khởi động ứng dụng (SplashScreen). Ứng dụng sẽ tự động kết nối ngầm, giúp trải nghiệm Sao lưu & Khôi phục mượt mà hơn.\n- **Cải thiện UX:** Truy cập dữ liệu sao lưu nhanh hơn và biểu đồ dễ đọc hơn.\n\n## Thay đổi kỹ thuật\n- Thay thế `BarChart` bằng `LineChart` trong `StatisticsScreen`.\n- Tối ưu hóa khởi tạo `BackupService` trong `SplashScreen`.\n- Cập nhật `BackupScreen` để sử dụng trạng thái đăng nhập toàn cục.\n",
-  "publishedAt": "2026-01-10T19:40:14.211918Z",
-  "fileSize": "21.6MB"
+  "versionName": "1.2.0",
+  "versionCode": 45,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.2.0/overtime_1.2.0.apk",
+  "changelog": "# Release Notes - v1.2.0+45\n\n## 🚀 Siêu cập nhật: Hệ sinh thái Tra cứu Native\n\nChúng tôi đã hoàn thiện trải nghiệm tra cứu các tiện ích công dân trực tiếp trong ứng dụng, không còn phụ thuộc vào giao diện web khó sử dụng.\n\n### 🚗 Tra cứu Phạt nguội (Bản sửa lỗi & Nâng cấp)\n- **Khắc phục lỗi kết nối:** Sử dụng cơ chế truyền tin mới giúp ổn định hơn trên các nhà mạng.\n- **Gợi ý từ Ví giấy tờ:** Tự động đề xuất biển số xe từ danh sách thẻ đã lưu để tiết kiệm thời gian nhập liệu.\n- **Giao diện mượt mà:** Hiển thị chi tiết vi phạm dưới dạng thẻ mở rộng (Expansion Card).\n\n### 🏦 Tra cứu Mã số thuế Native (MỚI)\n- Giao diện tra cứu MST cá nhân/doanh nghiệp hoàn toàn mới.\n- Tự động điền MST và CCCD từ Ví giấy tờ.\n- Hiển thị kết quả chi tiết: Tên người nộp thuế, Cơ quan thuế, Trạng thái hoạt động.\n\n### 🏥 Tra cứu BHXH / BHYT Native (MỚI)\n- Tra cứu mã số BHXH và quá trình đóng BHXH/BHYT trực tiếp.\n- Hỗ trợ lấy thông tin từ Ví giấy tờ cực kỳ nhanh chóng.\n\n### 🛠 Cải thiện UX/UI\n- Thêm cơ chế Timeout và báo lỗi thân thiện khi các trang web chính phủ phản hồi chậm.\n- Tối ưu hóa bộ nhớ và tốc độ xử lý khi scraping dữ liệu.\n",
+  "publishedAt": "2026-01-11T23:13:23.546022Z",
+  "fileSize": "22.0MB"
 }

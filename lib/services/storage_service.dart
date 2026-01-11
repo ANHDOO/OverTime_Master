@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../models/overtime_entry.dart';
 import '../models/debt_entry.dart';
 import '../models/cash_transaction.dart';
+import '../models/citizen_profile.dart';
 
 class StorageService {
   static Database? _database;
@@ -21,7 +22,7 @@ class StorageService {
     String path = join(await getDatabasesPath(), 'overtime.db');
     return await openDatabase(
       path,
-      version: 8,
+      version: 10,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE overtime(
@@ -61,6 +62,17 @@ class StorageService {
             project TEXT DEFAULT 'Mặc định',
             payment_type TEXT DEFAULT 'Hoá đơn giấy',
             createdAt TEXT
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE citizen_profiles(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT,
+            tax_id TEXT,
+            license_plate TEXT,
+            cccd_id TEXT,
+            bhxh_id TEXT,
+            is_default INTEGER DEFAULT 0
           )
         ''');
       },
@@ -112,6 +124,37 @@ class StorageService {
         if (oldVersion < 8) {
           try {
             await db.execute("ALTER TABLE cash_transactions ADD COLUMN payment_type TEXT DEFAULT 'Hoá đơn giấy'");
+          } catch (_) {}
+        }
+        if (oldVersion < 9) {
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS citizen_profiles(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT,
+                tax_id TEXT,
+                license_plate TEXT,
+                cccd_id TEXT,
+                bhxh_id TEXT,
+                is_default INTEGER DEFAULT 0
+              )
+            ''');
+          } catch (_) {}
+        }
+        // Force create for version 10 as fallback for broken v9 installs
+        if (oldVersion < 10) {
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS citizen_profiles(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT,
+                tax_id TEXT,
+                license_plate TEXT,
+                cccd_id TEXT,
+                bhxh_id TEXT,
+                is_default INTEGER DEFAULT 0
+              )
+            ''');
           } catch (_) {}
         }
       },
@@ -211,6 +254,33 @@ class StorageService {
       transaction.toMap(),
       where: 'id = ?',
       whereArgs: [transaction.id],
+    );
+  }
+
+  // Citizen Profile methods
+  Future<int> insertCitizenProfile(CitizenProfile profile) async {
+    final db = await database;
+    return await db.insert('citizen_profiles', profile.toMap());
+  }
+
+  Future<List<CitizenProfile>> getAllCitizenProfiles() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('citizen_profiles', orderBy: 'id ASC');
+    return List.generate(maps.length, (i) => CitizenProfile.fromMap(maps[i]));
+  }
+
+  Future<int> deleteCitizenProfile(int id) async {
+    final db = await database;
+    return await db.delete('citizen_profiles', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> updateCitizenProfile(CitizenProfile profile) async {
+    final db = await database;
+    return await db.update(
+      'citizen_profiles',
+      profile.toMap(),
+      where: 'id = ?',
+      whereArgs: [profile.id],
     );
   }
 

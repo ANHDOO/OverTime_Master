@@ -3,7 +3,7 @@
 ## Tổng quan dự án
 Ứng dụng quản lý giờ tăng ca (Overtime) cá nhân, hỗ trợ tính lương, xuất báo cáo Excel và sao lưu Google Drive.
 
-- **Current Version:** 1.0.6+38
+- **Current Version:** 1.2.0+45
 - **Status:** Active Development (UX/UI Polish Phase)
 
 ## Công nghệ sử dụng
@@ -56,6 +56,7 @@
 - [ ] **Báo cáo nâng cao:** Thêm biểu đồ so sánh thu nhập giữa các tháng/năm.
 - [ ] **Quản lý mục tiêu:** Đặt mục tiêu thu nhập tháng và theo dõi tiến độ.
 - [ ] **Widget:** Thêm widget màn hình chính để xem nhanh tổng giờ OT trong tháng.
+- [x] **Citizen Search Hub (Completed):** Phân hệ tra cứu đa năng với tính năng lưu hồ sơ cá nhân thông minh.
 
 ### Giai đoạn 3: Thông minh hóa
 - [ ] **AI Assistant:** Tích hợp chatbot hỗ trợ giải đáp thắc mắc về lương, thuế.
