@@ -10,6 +10,7 @@ import '../services/storage_service.dart';
 import '../services/settings_service.dart';
 import '../services/google_sheets_service.dart';
 import '../services/notification_service.dart';
+import '../services/backup_service.dart';
 import '../utils/overtime_calculator.dart';
 import '../services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -479,6 +480,8 @@ class OvertimeProvider with ChangeNotifier {
       
       if (success) {
         debugPrint('✅ Đã đồng bộ project $project lên Google Sheets');
+        // Auto-backup keys after successful sync
+        await _backupSheetsKeysIfNeeded();
       } else {
         debugPrint('❌ Lỗi khi đồng bộ project $project');
       }
@@ -494,6 +497,42 @@ class OvertimeProvider with ChangeNotifier {
       if (project != 'Mặc định') {
         await _syncProjectToSheets(project);
       }
+    }
+  }
+
+  /// Backup Google Sheets keys lên Drive (được gọi tự động khi sync)
+  Future<void> _backupSheetsKeysIfNeeded() async {
+    try {
+      final sheetsService = GoogleSheetsService();
+      final hasKeys = await sheetsService.hasKeys();
+      if (!hasKeys) return; // No keys to backup
+
+      // Check if we already backed up keys recently (within last hour)
+      final prefs = await SharedPreferences.getInstance();
+      final lastBackupStr = prefs.getString('last_keys_backup_timestamp');
+      if (lastBackupStr != null) {
+        final lastBackup = DateTime.parse(lastBackupStr);
+        final now = DateTime.now();
+        if (now.difference(lastBackup).inHours < 1) {
+          return; // Already backed up recently
+        }
+      }
+
+      // Import backup service dynamically to avoid circular dependency
+      final backupService = BackupService();
+
+      // Try silent sign-in first
+      final signedIn = await backupService.signInSilently();
+      if (signedIn) {
+        final success = await backupService.backupSheetsKeys();
+        if (success) {
+          await prefs.setString('last_keys_backup_timestamp', DateTime.now().toIso8601String());
+          debugPrint('✅ Auto-backed up Google Sheets keys');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to auto-backup keys: $e');
+      // Don't throw error - this is background operation
     }
   }
 

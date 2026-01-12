@@ -98,7 +98,7 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx'));
+      ..loadRequest(Uri.parse('https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-thong-tin-bhxh.aspx'));
   }
 
   Future<void> _extractCaptcha() async {
@@ -167,15 +167,24 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
               el.value = val;
               el.dispatchEvent(new Event('input', { bubbles: true }));
               el.dispatchEvent(new Event('change', { bubbles: true }));
+              el.dispatchEvent(new Event('blur', { bubbles: true }));
             }
           }
-          // Selectors for tra-cuu-ho-gia-dinh.aspx
-          setVal('#HoTen', '${widget.profile?.label ?? ""}');
-          setVal('#CMND', '${_idController.text}');
-          setVal('input[id*="captcha"], #captcha', '${_captchaController.text}');
-          
-          const btn = document.querySelector('#btn-submit, button[type="submit"], .btn-search');
-          if(btn) btn.click();
+
+          // Selectors for tra-cuu-thong-tin-bhxh.aspx - updated for new page structure
+          setVal('input[name="SoBHXH"], input[id*="BHXH"], #SoBHXH', '${_bhxhController.text}');
+          setVal('input[name="CMND"], input[id*="CMND"], #CMND', '${_idController.text}');
+          setVal('input[name="MaXacNhan"], input[id*="captcha"], #MaXacNhan, #captcha', '${_captchaController.text}');
+
+          // Try to click submit button
+          const submitBtn = document.querySelector('input[type="submit"], button[type="submit"], #btn-submit, .btn-submit, input[value*="Tra cứu"]');
+          if (submitBtn) {
+            submitBtn.click();
+          } else {
+            // Try form submit
+            const form = document.querySelector('form');
+            if (form) form.submit();
+          }
         })()
       ''');
 
@@ -183,19 +192,40 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
 
       final result = await _headlessController!.runJavaScriptReturningResult('''
         (function() {
-          const table = document.querySelector('table.table-result, .table-responsive table');
-          if (!table) return JSON.stringify([]);
+          // Check for error messages first
+          const errorMsg = document.querySelector('.error, .alert-danger, .error-message, .notification-error')?.innerText || '';
+          if (errorMsg.includes('không tìm thấy') || errorMsg.includes('sai') || errorMsg.includes('lỗi')) {
+            return JSON.stringify({error: errorMsg});
+          }
+
+          // Look for result tables with various selectors
+          const table = document.querySelector('table.table-result, .table-responsive table, table[id*="result"], table[class*="result"], #tblResult, .result-table');
+          if (!table) {
+            // Check if results are displayed differently (divs/spans)
+            const resultDiv = document.querySelector('.result-info, .info-result, #resultInfo');
+            if (resultDiv) {
+              return JSON.stringify([{
+                'name': resultDiv.querySelector('[data-field="name"], .name')?.innerText?.trim() || 'N/A',
+                'bhxh_id': resultDiv.querySelector('[data-field="bhxh"], .bhxh')?.innerText?.trim() || '${_bhxhController.text}',
+                'gender': resultDiv.querySelector('[data-field="gender"], .gender')?.innerText?.trim() || 'N/A',
+                'dob': resultDiv.querySelector('[data-field="dob"], .dob')?.innerText?.trim() || 'N/A',
+                'address': resultDiv.querySelector('[data-field="address"], .address')?.innerText?.trim() || 'N/A'
+              }]);
+            }
+            return JSON.stringify([]);
+          }
+
           const rows = table.querySelectorAll('tr');
           let data = [];
           for(let i = 1; i < rows.length; i++) {
-            const cells = rows[i].querySelectorAll('td');
-            if(cells.length >= 4) {
+            const cells = rows[i].querySelectorAll('td, th');
+            if(cells.length >= 3) {
               data.push({
-                'name': cells[1]?.innerText.trim() || '',
-                'bhxh_id': cells[2]?.innerText.trim() || '',
-                'gender': cells[3]?.innerText.trim() || '',
-                'dob': cells[4]?.innerText.trim() || '',
-                'address': cells[5]?.innerText.trim() || ''
+                'name': cells[0]?.innerText.trim() || cells[1]?.innerText.trim() || '',
+                'bhxh_id': cells[1]?.innerText.trim() || cells[2]?.innerText.trim() || '${_bhxhController.text}',
+                'gender': cells[2]?.innerText.trim() || cells[3]?.innerText.trim() || '',
+                'dob': cells[3]?.innerText.trim() || cells[4]?.innerText.trim() || '',
+                'address': cells[4]?.innerText.trim() || cells[5]?.innerText.trim() || ''
               });
             }
           }
@@ -208,15 +238,34 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
           ? resultStr.substring(1, resultStr.length - 1).replaceAll(r'\"', '"')
           : resultStr;
       
-      final List<dynamic> json = jsonDecode(cleanJson);
-      
-      if (mounted) {
-        setState(() {
-          _results = json.cast<Map<String, String>>();
-          _showResults = true;
-          _isLoading = false;
-          _statusMessage = _results.isEmpty ? 'Không tìm thấy dữ liệu' : 'Đã lấy dữ liệu thành công';
-        });
+      try {
+        final decoded = jsonDecode(cleanJson);
+
+        if (mounted) {
+          if (decoded is Map && decoded['error'] != null) {
+            setState(() {
+              _errorMessage = decoded['error'];
+              _isLoading = false;
+            });
+            _initHeadlessWebView(); // Refresh captcha
+            return;
+          }
+
+          final List<dynamic> json = decoded is List ? decoded : [];
+          setState(() {
+            _results = json.cast<Map<String, String>>();
+            _showResults = true;
+            _isLoading = false;
+            _statusMessage = _results.isEmpty ? 'Không tìm thấy dữ liệu' : 'Đã lấy dữ liệu thành công';
+          });
+        }
+      } catch (parseError) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Lỗi xử lý dữ liệu: $parseError';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

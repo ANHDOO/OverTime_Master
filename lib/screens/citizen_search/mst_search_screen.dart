@@ -184,39 +184,51 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
       // We also check for error messages like "Sai mã xác nhận"
       final result = await _headlessController!.runJavaScriptReturningResult('''
         (function() {
-          const errorMsg = document.querySelector('.error, .alert-danger, .error_text')?.innerText || '';
-          if (errorMsg.includes('mã xác nhận')) return JSON.stringify({error: 'Mã xác nhận không chính xác'});
-          if (errorMsg.isNotEmpty && errorMsg.length < 100) return JSON.stringify({error: errorMsg});
+          // Check for error messages first
+          const errorMsg = document.querySelector('.error, .alert-danger, .error_text, .notification, .message')?.innerText || '';
+          if (errorMsg.includes('mã xác nhận') || errorMsg.includes('captcha') || errorMsg.includes('xác thực')) {
+            return JSON.stringify({error: 'Mã xác nhận không chính xác'});
+          }
+          if (errorMsg.includes('không tìm thấy') || errorMsg.includes('not found')) {
+            return JSON.stringify({error: 'Không tìm thấy thông tin người nộp thuế'});
+          }
+          if (errorMsg.isNotEmpty && errorMsg.length > 0 && errorMsg.length < 200) {
+            return JSON.stringify({error: errorMsg.trim()});
+          }
 
-          const table = document.querySelector('.ta_border, table[width="100%"]');
+          // Look for result table
+          const table = document.querySelector('.ta_border, table[width="100%"], table[border="1"], .result-table, #resultTable');
           if (!table) {
              const bodyText = document.body.innerText;
-             if (bodyText.includes('không tìm thấy')) return JSON.stringify({error: 'Không tìm thấy thông tin người nộp thuế'});
+             if (bodyText.includes('không tìm thấy') || bodyText.includes('not found')) {
+               return JSON.stringify({error: 'Không tìm thấy thông tin người nộp thuế'});
+             }
              return JSON.stringify({error: 'Không tìm thấy bảng kết quả. Có thể do lỗi mạng hoặc sai Captcha.'});
           }
-          
+
           const rows = table.querySelectorAll('tr');
-          if (rows.length < 2) return JSON.stringify({error: 'Website không trả về dữ liệu hàng.'});
-          
-          // GDT sometimes has multiple tables or nested ones. Let's find the one with actual data row
+          if (rows.length < 2) return JSON.stringify({error: 'Không tìm thấy dữ liệu kết quả.'});
+
+          // Find the data row (skip header)
           let dataRow = null;
           for (let i = 1; i < rows.length; i++) {
              const cells = rows[i].querySelectorAll('td');
-             if (cells.length >= 6) {
+             // Look for row with substantial data (at least 4 cells)
+             if (cells.length >= 4 && cells[0]?.innerText?.trim()) {
                 dataRow = cells;
                 break;
              }
           }
 
-          if (!dataRow) return JSON.stringify({error: 'Không tìm thấy hàng dữ liệu hợp lệ.'});
+          if (!dataRow || dataRow.length < 4) return JSON.stringify({error: 'Không tìm thấy dữ liệu hợp lệ.'});
 
           return JSON.stringify({
-            'mst': dataRow[1]?.innerText.trim() || '',
-            'name': dataRow[2]?.innerText.trim() || '',
-            'agency': dataRow[3]?.innerText.trim() || '',
-            'id_card': dataRow[4]?.innerText.trim() || '',
-            'last_update': dataRow[5]?.innerText.trim() || '',
-            'status': dataRow[6]?.innerText.trim() || ''
+            'mst': dataRow[0]?.innerText.trim() || dataRow[1]?.innerText.trim() || '',
+            'name': dataRow[1]?.innerText.trim() || dataRow[2]?.innerText.trim() || '',
+            'agency': dataRow[2]?.innerText.trim() || dataRow[3]?.innerText.trim() || '',
+            'id_card': dataRow[3]?.innerText.trim() || dataRow[4]?.innerText.trim() || '',
+            'last_update': dataRow[4]?.innerText.trim() || dataRow[5]?.innerText.trim() || '',
+            'status': dataRow[5]?.innerText.trim() || dataRow[6]?.innerText.trim() || ''
           });
         })()
       ''');

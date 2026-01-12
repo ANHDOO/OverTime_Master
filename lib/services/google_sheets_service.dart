@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'dart:typed_data';
 
 /// Service để đồng bộ dữ liệu Quỹ Phòng với Google Sheets
 class GoogleSheetsService {
@@ -653,5 +654,140 @@ class GoogleSheetsService {
     _accessToken = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('google_sheets_access_token');
+  }
+
+  /// Encrypt data using simple XOR (for demo - use AES in production)
+  String _encryptData(String data) {
+    const key = 'NoteOverTimeSheetsKey2024'; // Should be more secure in production
+    final keyBytes = utf8.encode(key);
+    final dataBytes = utf8.encode(data);
+    final encrypted = <int>[];
+
+    for (int i = 0; i < dataBytes.length; i++) {
+      encrypted.add(dataBytes[i] ^ keyBytes[i % keyBytes.length]);
+    }
+
+    return base64.encode(encrypted);
+  }
+
+  /// Decrypt data using simple XOR
+  String _decryptData(String encryptedData) {
+    try {
+      const key = 'NoteOverTimeSheetsKey2024';
+      final keyBytes = utf8.encode(key);
+      final encryptedBytes = base64.decode(encryptedData);
+      final decrypted = <int>[];
+
+      for (int i = 0; i < encryptedBytes.length; i++) {
+        decrypted.add(encryptedBytes[i] ^ keyBytes[i % keyBytes.length]);
+      }
+
+      return utf8.decode(decrypted);
+    } catch (e) {
+      debugPrint('Error decrypting data: $e');
+      return '';
+    }
+  }
+
+  /// Export Google Sheets keys to encrypted JSON string
+  Future<String?> exportKeys() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final keys = {
+        'access_token': prefs.getString('google_sheets_access_token') ?? '',
+        'refresh_token': prefs.getString('google_sheets_refresh_token') ?? '',
+        'client_id': prefs.getString('google_sheets_client_id') ?? '',
+        'client_secret': prefs.getString('google_sheets_client_secret') ?? '',
+        'token_expiry': prefs.getString('google_sheets_token_expiry') ?? '',
+        'exported_at': DateTime.now().toIso8601String(),
+        'version': '1.0',
+      };
+
+      // Check if we have any keys to export
+      final hasKeys = keys.values.any((value) => value.isNotEmpty);
+      if (!hasKeys) {
+        return null; // No keys to export
+      }
+
+      final jsonString = json.encode(keys);
+      return _encryptData(jsonString);
+    } catch (e) {
+      debugPrint('Error exporting keys: $e');
+      return null;
+    }
+  }
+
+  /// Import Google Sheets keys from encrypted JSON string
+  Future<bool> importKeys(String encryptedKeys) async {
+    try {
+      final decryptedJson = _decryptData(encryptedKeys);
+      if (decryptedJson.isEmpty) {
+        return false;
+      }
+
+      final keys = json.decode(decryptedJson) as Map<String, dynamic>;
+
+      // Validate version
+      final version = keys['version'] as String?;
+      if (version != '1.0') {
+        debugPrint('Unsupported key version: $version');
+        return false;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Import keys
+      if (keys['access_token']?.isNotEmpty == true) {
+        await prefs.setString('google_sheets_access_token', keys['access_token']);
+        _accessToken = keys['access_token'];
+      }
+
+      if (keys['refresh_token']?.isNotEmpty == true) {
+        await prefs.setString('google_sheets_refresh_token', keys['refresh_token']);
+        _refreshToken = keys['refresh_token'];
+      }
+
+      if (keys['client_id']?.isNotEmpty == true) {
+        await prefs.setString('google_sheets_client_id', keys['client_id']);
+        _clientId = keys['client_id'];
+      }
+
+      if (keys['client_secret']?.isNotEmpty == true) {
+        await prefs.setString('google_sheets_client_secret', keys['client_secret']);
+        _clientSecret = keys['client_secret'];
+      }
+
+      if (keys['token_expiry']?.isNotEmpty == true) {
+        await prefs.setString('google_sheets_token_expiry', keys['token_expiry']);
+        try {
+          _accessTokenExpiry = DateTime.parse(keys['token_expiry']);
+        } catch (e) {
+          debugPrint('Error parsing token expiry: $e');
+        }
+      }
+
+      debugPrint('Successfully imported Google Sheets keys');
+      return true;
+    } catch (e) {
+      debugPrint('Error importing keys: $e');
+      return false;
+    }
+  }
+
+  /// Check if Google Sheets keys are configured
+  Future<bool> hasKeys() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final accessToken = prefs.getString('google_sheets_access_token');
+      final refreshToken = prefs.getString('google_sheets_refresh_token');
+      final clientId = prefs.getString('google_sheets_client_id');
+
+      return (accessToken?.isNotEmpty == true) ||
+             (refreshToken?.isNotEmpty == true) ||
+             (clientId?.isNotEmpty == true);
+    } catch (e) {
+      return false;
+    }
   }
 }

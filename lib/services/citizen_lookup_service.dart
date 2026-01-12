@@ -17,7 +17,7 @@ class CitizenLookupService {
   final Map<LookupType, String> _urls = {
     LookupType.phatNguoi: 'https://www.csgt.vn/tra-cuu-phat-nguoi-43.html',
     LookupType.mst: 'https://tracuunnt.gdt.gov.vn/tcnnt/mstcn.jsp',
-    LookupType.bhxh: 'https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx',
+    LookupType.bhxh: 'https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-thong-tin-bhxh.aspx',
   };
 
   void prewarm(LookupType type) {

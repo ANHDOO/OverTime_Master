@@ -16,14 +16,29 @@ class CaptchaService {
 
   /// Extract captcha image from WebView as Base64 and solve it using OCR
   Future<String?> solveCaptchaFromWebView(WebViewController controller) async {
-    for (int attempt = 0; attempt < 3; attempt++) {
+    for (int attempt = 0; attempt < 5; attempt++) { // Increased retries
       try {
-        // 1. Get Base64 of the captcha image via JS
+        // Wait a bit for image to load
+        await Future.delayed(Duration(milliseconds: 500 + (attempt * 200)));
+
+        // 1. Get Base64 of the captcha image via JS - expanded selectors
         final String base64Image = await controller.runJavaScriptReturningResult('''
           (function() {
-            const img = document.querySelector('img[src*="captcha"], img[src*="Captcha"], img[id*="captcha"], #imgCaptcha');
+            // Try multiple selectors for captcha image
+            const selectors = [
+              'img[src*="captcha"]', 'img[src*="Captcha"]', 'img[id*="captcha"]',
+              '#imgCaptcha', '#captchaImage', 'img[alt*="captcha"]',
+              'img[class*="captcha"]', '.captcha img', '#captcha img'
+            ];
+
+            let img = null;
+            for (const selector of selectors) {
+              img = document.querySelector(selector);
+              if (img && img.complete && img.naturalWidth > 0) break;
+            }
+
             if (!img || !img.complete || img.naturalWidth === 0) return '';
-            
+
             const canvas = document.createElement('canvas');
             canvas.width = img.naturalWidth;
             canvas.height = img.naturalHeight;
@@ -50,10 +65,11 @@ class CaptchaService {
         final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
 
         // 4. Cleanup and return result
-        String result = recognizedText.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim();
+        String result = recognizedText.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim().toUpperCase();
         debugPrint('[CaptchaService] Attempt ${attempt + 1} Recognized: $result');
-        
-        if (result.length >= 4 && result.length <= 6) {
+
+        // More lenient validation - accept 3-8 characters for various captcha types
+        if (result.length >= 3 && result.length <= 8 && RegExp(r'^[A-Z0-9]+$').hasMatch(result)) {
           return result;
         }
         

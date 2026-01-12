@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/backup_service.dart';
+import '../../services/google_sheets_service.dart';
 import 'package:provider/provider.dart';
 import '../../providers/overtime_provider.dart';
 
@@ -19,6 +20,12 @@ class _BackupScreenState extends State<BackupScreen> {
   List<Map<String, dynamic>> _backupList = [];
   Map<String, dynamic>? _lastBackupInfo;
   Map<String, dynamic>? _lastRestoreInfo;
+
+  // Keys backup state
+  bool _hasSheetsKeys = false;
+  Map<String, dynamic>? _lastKeysBackupInfo;
+  Map<String, dynamic>? _lastKeysRestoreInfo;
+  List<Map<String, dynamic>> _keysBackupList = [];
 
   @override
   void initState() {
@@ -72,6 +79,14 @@ class _BackupScreenState extends State<BackupScreen> {
       _backupList = await _backupService.getBackupList();
       _lastBackupInfo = await _backupService.getLastBackupInfo();
       _lastRestoreInfo = await _backupService.getLastRestoreInfo();
+
+      // Load keys data
+      final sheetsService = GoogleSheetsService();
+      _hasSheetsKeys = await sheetsService.hasKeys();
+      _lastKeysBackupInfo = await _backupService.getLastKeysBackupInfo();
+      _lastKeysRestoreInfo = await _backupService.getLastKeysRestoreInfo();
+      _keysBackupList = await _backupService.getKeysBackupList();
+
       setState(() {});
     } catch (e) {
       _showError('Lỗi tải dữ liệu backup: $e');
@@ -313,6 +328,11 @@ class _BackupScreenState extends State<BackupScreen> {
 
                   // Backup Actions
                   _buildBackupActions(),
+
+                  const SizedBox(height: 24),
+
+                  // Google Sheets Keys Backup
+                  _buildKeysBackupSection(),
 
                   const SizedBox(height: 24),
 
@@ -625,5 +645,195 @@ class _BackupScreenState extends State<BackupScreen> {
               )),
       ],
     );
+  }
+
+  Widget _buildKeysBackupSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.vpn_key, color: Colors.blue),
+                const SizedBox(width: 8),
+                const Text(
+                  'Google Sheets Keys',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _hasSheetsKeys ? Colors.green[100] : Colors.orange[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _hasSheetsKeys ? Icons.check_circle : Icons.warning,
+                        size: 16,
+                        color: _hasSheetsKeys ? Colors.green : Colors.orange,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _hasSheetsKeys ? 'Đã cấu hình' : 'Chưa có keys',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _hasSheetsKeys ? Colors.green[800] : Colors.orange[800],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _hasSheetsKeys
+                  ? 'Keys Google Sheets của bạn đã được cấu hình. Keys sẽ được tự động backup khi bạn sync dữ liệu.'
+                  : 'Bạn chưa cấu hình Google Sheets. Hãy thiết lập trong phần Cài đặt Google Sheets.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            if (_hasSheetsKeys) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _backupSheetsKeys,
+                      icon: const Icon(Icons.backup, size: 16),
+                      label: const Text('Backup Keys'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _restoreSheetsKeys,
+                      icon: const Icon(Icons.restore, size: 16),
+                      label: const Text('Restore Keys'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (_lastKeysBackupInfo != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.backup, size: 16, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Keys đã backup: ${_formatDateTime(_lastKeysBackupInfo!['timestamp'])}',
+                        style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (_lastKeysRestoreInfo != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.restore, size: 16, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Keys đã khôi phục: ${_formatDateTime(_lastKeysRestoreInfo!['timestamp'])}',
+                        style: TextStyle(fontSize: 12, color: Colors.green[800]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _backupSheetsKeys() async {
+    setState(() => _isLoading = true);
+    try {
+      final success = await _backupService.backupSheetsKeys();
+      if (success) {
+        _showSuccess('Backup Google Sheets keys thành công');
+        await _loadBackupData();
+      } else {
+        _showError('Backup Google Sheets keys thất bại');
+      }
+    } catch (e) {
+      _showError('Lỗi backup keys: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _restoreSheetsKeys() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận khôi phục Keys'),
+        content: const Text(
+          'Keys Google Sheets hiện tại sẽ bị ghi đè. Bạn có chắc chắn muốn khôi phục?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('Khôi phục'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final success = await _backupService.restoreSheetsKeys();
+      if (success) {
+        _showSuccess('Khôi phục Google Sheets keys thành công');
+        await _loadBackupData();
+      } else {
+        _showError('Khôi phục Google Sheets keys thất bại');
+      }
+    } catch (e) {
+      _showError('Lỗi khôi phục keys: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }
