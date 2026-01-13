@@ -1,0 +1,8 @@
+{
+  "versionName": "1.3.7",
+  "versionCode": 54,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.3.7/overtime_1.3.7.apk",
+  "changelog": "# Phiên bản 1.3.7 (Build 54)\n**Ngày phát hành:** 13/01/2026\n\n## ✨ Cải tiến giao diện\n\n### Menu Sidebar\n- Thêm avatar cá nhân vào header menu\n- Tinh gọn thông tin hiển thị\n\n### Màn hình Ví Giấy tờ & Tiện ích\n- Xóa nút Reload không cần thiết trên AppBar\n- Cập nhật các tiêu đề và mô tả ngắn gọn hơn:\n  - \"Phạt nguội\" (thay vì \"Phạt nguội (Bản Native)\")\n  - \"Tra cứu thông tin\" (thay vì \"Tra cứu Native (Không WebView)\")\n  - Cập nhật mô tả các tiện ích\n\n## 🐛 Sửa lỗi\n- Tiếp tục từ v1.3.6: Fix logic MST captcha và UI Premium cho Phạt nguội\n",
+  "publishedAt": "2026-01-13T17:45:08.326015Z",
+  "fileSize": "23.4MB"
+}
