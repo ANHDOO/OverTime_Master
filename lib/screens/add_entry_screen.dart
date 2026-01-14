@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../providers/overtime_provider.dart';
 import '../widgets/custom_time_picker.dart';
 import '../models/overtime_entry.dart';
@@ -60,6 +61,19 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
       _selectedDate = entry.date;
       _startTime = entry.startTime;
       _endTime = entry.endTime;
+      
+      if (entry.shiftsJson != null) {
+        try {
+          final List<dynamic> decoded = jsonDecode(entry.shiftsJson!);
+          _timeSlots = decoded.map((s) => TimeSlot(
+            startTime: TimeOfDay(hour: s['start_hour'], minute: s['start_minute']),
+            endTime: TimeOfDay(hour: s['end_hour'], minute: s['end_minute']),
+          )).toList();
+          _inputMode = 2;
+        } catch (e) {
+          debugPrint('Error decoding shiftsJson: $e');
+        }
+      }
       return;
     }
     
@@ -149,54 +163,62 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              ...OTTemplate.defaults.map((template) => ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: template.color.withOpacity(isDark ? 0.2 : 0.12),
-                    borderRadius: AppRadius.borderMd,
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      ...OTTemplate.defaults.map((template) => ListTile(
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: template.color.withOpacity(isDark ? 0.2 : 0.12),
+                            borderRadius: AppRadius.borderMd,
+                          ),
+                          child: Icon(template.icon, color: template.color, size: 22),
+                        ),
+                        title: Text(
+                          template.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${template.timeRangeString} (${template.hours}h)',
+                          style: TextStyle(
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                        onTap: () {
+                          setState(() {
+                            _startTime = template.startTime;
+                            _endTime = template.endTime;
+                            _inputMode = 0;
+                          });
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Colors.white),
+                                  const SizedBox(width: 12),
+                                  Text('Đã áp dụng: ${template.name}'),
+                                ],
+                              ),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+                            ),
+                          );
+                        },
+                      )),
+                      const SizedBox(height: 24), // Bottom padding to avoid cut-off
+                    ],
                   ),
-                  child: Icon(template.icon, color: template.color, size: 22),
                 ),
-                title: Text(
-                  template.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                  ),
-                ),
-                subtitle: Text(
-                  '${template.timeRangeString} (${template.hours}h)',
-                  style: TextStyle(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  ),
-                ),
-                trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                onTap: () {
-                  setState(() {
-                    _startTime = template.startTime;
-                    _endTime = template.endTime;
-                    _inputMode = 0;
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.white),
-                          const SizedBox(width: 12),
-                          Text('Đã áp dụng: ${template.name}'),
-                        ],
-                      ),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-                    ),
-                  );
-                },
-              )),
-              const SizedBox(height: 16),
+              ),
             ],
           ),
         ),
@@ -308,10 +330,7 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
       final totalMinutes = 8 * 60 + (_selectedHours * 60).toInt();
       return TimeOfDay(hour: totalMinutes ~/ 60, minute: totalMinutes % 60);
     } else if (_inputMode == 2 && _timeSlots.isNotEmpty) {
-      final totalMinutes = _timeSlots.first.startTime.hour * 60 + 
-                           _timeSlots.first.startTime.minute + 
-                           (_getTotalHours() * 60).toInt();
-      return TimeOfDay(hour: (totalMinutes ~/ 60) % 24, minute: totalMinutes % 60);
+      return _timeSlots.last.endTime;
     }
     return _endTime;
   }
@@ -370,8 +389,8 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
                         _inputMode = 2;
                         if (_timeSlots.isEmpty) {
                           _timeSlots.add(TimeSlot(
-                            startTime: const TimeOfDay(hour: 9, minute: 30),
-                            endTime: const TimeOfDay(hour: 15, minute: 0),
+                            startTime: _startTime,
+                            endTime: _endTime,
                           ));
                         }
                       });
@@ -723,10 +742,22 @@ class _AddEntryScreenState extends State<AddEntryScreen> {
       ),
       child: ElevatedButton(
         onPressed: () async {
+          String? shiftsJson;
+          if (_inputMode == 2 && _timeSlots.isNotEmpty) {
+            shiftsJson = jsonEncode(_timeSlots.map((s) => {
+              'start_hour': s.startTime.hour,
+              'start_minute': s.startTime.minute,
+              'end_hour': s.endTime.hour,
+              'end_minute': s.endTime.minute,
+            }).toList());
+          }
+
           await provider.addEntry(
             date: _selectedDate,
             startTime: _getEffectiveStartTime(),
             endTime: _getEffectiveEndTime(),
+            shiftsJson: shiftsJson,
+            id: widget.editEntry?.id,
           );
           if (mounted) Navigator.pop(context);
         },

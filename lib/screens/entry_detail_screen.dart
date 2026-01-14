@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../models/overtime_entry.dart';
 import '../theme/app_theme.dart';
 
@@ -13,6 +14,15 @@ class EntryDetailScreen extends StatelessWidget {
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
     final dateFormat = DateFormat('EEEE, dd/MM/yyyy', 'vi_VN');
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    List<dynamic> shifts = [];
+    if (entry.shiftsJson != null) {
+      try {
+        shifts = jsonDecode(entry.shiftsJson!);
+      } catch (e) {
+        debugPrint('Error decoding shifts: $e');
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Chi tiết tăng ca')),
@@ -25,11 +35,11 @@ class EntryDetailScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSectionTitle('Thời gian làm việc', isDark),
             const SizedBox(height: 12),
-            _buildTimeCard(context, isDark),
+            _buildTimeCard(context, isDark, shifts),
             const SizedBox(height: 24),
             _buildSectionTitle('Chi tiết tính lương', isDark),
             const SizedBox(height: 12),
-            _buildOTBreakdown(context, currencyFormat, isDark),
+            _buildOTBreakdown(context, currencyFormat, isDark, shifts.isNotEmpty),
             const SizedBox(height: 24),
             _buildSummaryCard(context, currencyFormat, isDark),
           ],
@@ -122,43 +132,96 @@ class EntryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeCard(BuildContext context, bool isDark) {
+  Widget _buildTimeCard(BuildContext context, bool isDark, List<dynamic> shifts) {
+    if (shifts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          boxShadow: isDark ? null : AppShadows.cardLight,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildTimeItem(
+                context,
+                'Bắt đầu',
+                entry.startTime.format(context),
+                Icons.play_circle_outline_rounded,
+                AppColors.success,
+                isDark,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 60,
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+            Expanded(
+              child: _buildTimeItem(
+                context,
+                'Kết thúc',
+                entry.endTime.format(context),
+                Icons.stop_circle_outlined,
+                AppColors.danger,
+                isDark,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: AppRadius.borderLg,
         border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         boxShadow: isDark ? null : AppShadows.cardLight,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildTimeItem(
-              context,
-              'Bắt đầu',
-              entry.startTime.format(context),
-              Icons.play_circle_outline_rounded,
-              AppColors.success,
-              isDark,
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 60,
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-          Expanded(
-            child: _buildTimeItem(
-              context,
-              'Kết thúc',
-              entry.endTime.format(context),
-              Icons.stop_circle_outlined,
-              AppColors.danger,
-              isDark,
-            ),
-          ),
-        ],
+      child: Column(
+        children: shifts.asMap().entries.map((item) {
+          final index = item.key;
+          final shift = item.value;
+          final startTime = TimeOfDay(hour: shift['start_hour'], minute: shift['start_minute']);
+          final endTime = TimeOfDay(hour: shift['end_hour'], minute: shift['end_minute']);
+          
+          return Column(
+            children: [
+              if (index > 0) 
+                 Divider(height: 24, color: isDark ? AppColors.darkBorder.withOpacity(0.5) : AppColors.lightBorder.withOpacity(0.5)),
+              Row(
+                children: [
+                   Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: AppRadius.borderSm,
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildSimpleTime(context, 'Bắt đầu', startTime.format(context), isDark),
+                        Icon(Icons.arrow_forward_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, size: 16),
+                        _buildSimpleTime(context, 'Kết thúc', endTime.format(context), isDark),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -189,7 +252,24 @@ class EntryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOTBreakdown(BuildContext context, NumberFormat currencyFormat, bool isDark) {
+  Widget _buildSimpleTime(BuildContext context, String label, String time, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontSize: 11)),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOTBreakdown(BuildContext context, NumberFormat currencyFormat, bool isDark, bool hasMultipleShifts) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkCard : AppColors.lightCard,
@@ -202,7 +282,7 @@ class EntryDetailScreen extends StatelessWidget {
           if (entry.hours15 > 0 && !entry.isSunday)
             _buildOTRow(
               'Tăng ca x1.5',
-              '17:30 - 22:00',
+              hasMultipleShifts ? 'Ca ngày' : '17:30 - 22:00',
               entry.hours15,
               entry.hours15 * entry.hourlyRate * 1.5,
               currencyFormat,
@@ -212,7 +292,7 @@ class EntryDetailScreen extends StatelessWidget {
           if (entry.hours18 > 0 && !entry.isSunday)
             _buildOTRow(
               'Tăng ca x1.8',
-              'Sau 22:00',
+              hasMultipleShifts ? 'Ca đêm' : 'Sau 22:00',
               entry.hours18,
               entry.hours18 * entry.hourlyRate * 1.8,
               currencyFormat,
@@ -233,7 +313,6 @@ class EntryDetailScreen extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildOTRow(String title, String timeRange, double hours, double pay, NumberFormat format, Color color, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'dart:typed_data';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Service để đồng bộ dữ liệu Quỹ Phòng với Google Sheets
 class GoogleSheetsService {
@@ -11,9 +12,20 @@ class GoogleSheetsService {
   factory GoogleSheetsService() => _instance;
   GoogleSheetsService._internal();
 
-  // Spreadsheet ID từ URL: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit
-  static const String SPREADSHEET_ID = '1nmLuLHnA1mNYmTqZ9WI6DrxgFctu7KlzlYwCiDuFfOA';
+  // Spreadsheet ID mặc định từ user (File: OverTime Master - Quỹ Dự Án)
+  static const String DEFAULT_SPREADSHEET_ID = '1-TndqomHGzja-u8p0JIK9kvNXqCijR9uG0gdejw_yQI';
+  String? _spreadsheetId;
   static const String API_BASE_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
+  static const String DRIVE_API_URL = 'https://www.googleapis.com/drive/v3/files';
+  
+  // Google Sign-In instance với scopes cho Sheets API
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: [
+      'email',
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.file',
+    ],
+  );
   
   // Cache access token
   String? _accessToken;
@@ -21,6 +33,83 @@ class GoogleSheetsService {
   String? _refreshToken;
   String? _clientId;
   String? _clientSecret;
+  
+  // Google Sign-In account (for Plan A)
+  GoogleSignInAccount? _currentUser;
+
+  /// Lấy spreadsheet ID (ưu tiên ID được lưu, sau đó là mặc định, cuối cùng là tạo mới)
+  Future<String?> getSpreadsheetId() async {
+    if (_spreadsheetId != null && _spreadsheetId!.isNotEmpty) {
+      return _spreadsheetId;
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    _spreadsheetId = prefs.getString('google_sheets_spreadsheet_id');
+    
+    if (_spreadsheetId != null && _spreadsheetId!.isNotEmpty) {
+      return _spreadsheetId;
+    }
+    
+    // Nếu chưa có ID nào được lưu, sử dụng ID mặc định
+    _spreadsheetId = DEFAULT_SPREADSHEET_ID;
+    await prefs.setString('google_sheets_spreadsheet_id', DEFAULT_SPREADSHEET_ID);
+    
+    return _spreadsheetId;
+  }
+
+  /// Lưu Spreadsheet ID tùy chỉnh
+  Future<void> saveCustomSpreadsheetId(String id) async {
+    _spreadsheetId = id.trim();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('google_sheets_spreadsheet_id', _spreadsheetId!);
+    debugPrint('[GoogleSheets] Custom Spreadsheet ID saved: $_spreadsheetId');
+  }
+
+  /// Tạo spreadsheet mới trong Drive của user
+  Future<String?> _createNewSpreadsheet() async {
+    final token = await getAccessToken();
+    if (token == null) {
+      debugPrint('[GoogleSheets] Cannot create spreadsheet - no token');
+      return null;
+    }
+    
+    try {
+      debugPrint('[GoogleSheets] Creating new spreadsheet...');
+      
+      final response = await http.post(
+        Uri.parse('$API_BASE_URL?access_token=$token'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'properties': {
+            'title': 'OverTime Master - Quỹ Dự Án',
+          },
+          'sheets': [
+            {'properties': {'title': 'Tổng quan'}},
+          ],
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final newId = data['spreadsheetId'] as String;
+        
+        // Lưu ID vào preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('google_sheets_spreadsheet_id', newId);
+        _spreadsheetId = newId;
+        
+        debugPrint('[GoogleSheets] Created new spreadsheet: $newId');
+        return newId;
+      } else {
+        debugPrint('[GoogleSheets] Failed to create spreadsheet: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('[GoogleSheets] Error creating spreadsheet: $e');
+      return null;
+    }
+  }
+
 
   String _formatCurrency(num value) {
     try {
@@ -64,14 +153,97 @@ class GoogleSheetsService {
       }
     }
 
-    // Try to refresh
-    if (_refreshToken != null) {
+    // Try to refresh using refresh token (Plan B)
+    if (_refreshToken != null && _refreshToken!.isNotEmpty) {
+      debugPrint('[GoogleSheets] Attempting token refresh...');
       final ok = await refreshAccessToken();
       if (ok) return _accessToken;
+      debugPrint('[GoogleSheets] Refresh failed, will try Google Sign-In silently');
+    }
+
+    // Try to get token from Google Sign-In silently (Plan A)
+    final signInToken = await _getTokenFromGoogleSignIn(silently: true);
+    if (signInToken != null) {
+      return signInToken;
     }
 
     return _accessToken;
   }
+
+  /// Đăng nhập Google và lấy token cho Sheets API (Plan A)
+  Future<String?> signInWithGoogle() async {
+    try {
+      debugPrint('[GoogleSheets] Starting Google Sign-In...');
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        debugPrint('[GoogleSheets] User cancelled sign-in');
+        return null;
+      }
+      
+      _currentUser = account;
+      final auth = await account.authentication;
+      final token = auth.accessToken;
+      
+      if (token != null) {
+        // Save to cache (token từ Google Sign-In thường có thời hạn ~1h)
+        await setAccessToken(token, expiresInSeconds: 3600);
+        debugPrint('[GoogleSheets] Sign-in successful, token obtained');
+        return token;
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('[GoogleSheets] Sign-in error: $e');
+      return null;
+    }
+  }
+
+  /// Lấy token từ Google Sign-In (silent = không hiện popup)
+  Future<String?> _getTokenFromGoogleSignIn({bool silently = true}) async {
+    try {
+      GoogleSignInAccount? account;
+      
+      if (silently) {
+        // Thử đăng nhập im lặng (nếu đã có session)
+        account = await _googleSignIn.signInSilently();
+      } else {
+        account = await _googleSignIn.signIn();
+      }
+      
+      if (account == null) return null;
+      
+      _currentUser = account;
+      final auth = await account.authentication;
+      final token = auth.accessToken;
+      
+      if (token != null) {
+        await setAccessToken(token, expiresInSeconds: 3600);
+        debugPrint('[GoogleSheets] Got token from Google Sign-In');
+        return token;
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('[GoogleSheets] Silent sign-in failed: $e');
+      return null;
+    }
+  }
+
+  /// Kiểm tra trạng thái đăng nhập Google
+  Future<bool> isSignedInWithGoogle() async {
+    return await _googleSignIn.isSignedIn();
+  }
+
+  /// Đăng xuất Google
+  Future<void> signOutGoogle() async {
+    await _googleSignIn.signOut();
+    _currentUser = null;
+    debugPrint('[GoogleSheets] Signed out from Google');
+  }
+
+  /// Lấy email của user đã đăng nhập
+  String? get currentUserEmail => _currentUser?.email;
+
 
   /// Lưu access token
   Future<void> setAccessToken(String token, {int? expiresInSeconds}) async {
@@ -156,10 +328,17 @@ class GoogleSheetsService {
       return null;
     }
     
+    // Lấy spreadsheet ID (tự động tạo nếu chưa có)
+    final spreadsheetId = await getSpreadsheetId();
+    if (spreadsheetId == null) {
+      debugPrint('Cannot get or create spreadsheet');
+      return null;
+    }
+    
     try {
       // Lấy danh sách sheets
       final response = await http.get(
-        Uri.parse('$API_BASE_URL/$SPREADSHEET_ID?access_token=$token'),
+        Uri.parse('$API_BASE_URL/$spreadsheetId?access_token=$token'),
       );
 
       if (response.statusCode == 401) {
@@ -168,7 +347,7 @@ class GoogleSheetsService {
         if (refreshed) {
           final retryToken = await getAccessToken();
           if (retryToken != null) {
-            final retryResp = await http.get(Uri.parse('$API_BASE_URL/$SPREADSHEET_ID?access_token=$retryToken'));
+            final retryResp = await http.get(Uri.parse('$API_BASE_URL/$spreadsheetId?access_token=$retryToken'));
             if (retryResp.statusCode == 200) {
               final data = json.decode(retryResp.body);
               final sheets = data['sheets'] as List;
@@ -178,7 +357,7 @@ class GoogleSheetsService {
                   return properties['sheetId'].toString();
                 }
               }
-              return await _createSheet(projectName, retryToken);
+              return await _createSheet(projectName, retryToken, spreadsheetId);
             } else {
               debugPrint('Retry failed: ${retryResp.statusCode} - ${retryResp.body}');
               return null;
@@ -206,7 +385,7 @@ class GoogleSheetsService {
       }
       
       // Nếu không tìm thấy, tạo sheet mới
-      return await _createSheet(projectName, token);
+      return await _createSheet(projectName, token, spreadsheetId);
     } catch (e) {
       debugPrint('Error finding/creating sheet: $e');
       return null;
@@ -214,10 +393,10 @@ class GoogleSheetsService {
   }
   
   /// Tạo sheet mới
-  Future<String?> _createSheet(String projectName, String token) async {
+  Future<String?> _createSheet(String projectName, String token, String spreadsheetId) async {
     try {
       final response = await http.post(
-        Uri.parse('$API_BASE_URL/$SPREADSHEET_ID:batchUpdate?access_token=$token'),
+        Uri.parse('$API_BASE_URL/$spreadsheetId:batchUpdate?access_token=$token'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'requests': [
@@ -254,13 +433,15 @@ class GoogleSheetsService {
       debugPrint('No access token available');
       return false;
     }
+
+    final spreadsheetId = await getSpreadsheetId();
+    if (spreadsheetId == null) return false;
     
     try {
       // Format giá trị (nếu là số, không cần quotes)
-      final valueStr = value is num ? value.toString() : '"$value"';
       
       final response = await http.put(
-        Uri.parse('$API_BASE_URL/$SPREADSHEET_ID/values/$sheetName!$cell?access_token=$token&valueInputOption=USER_ENTERED'),
+        Uri.parse('$API_BASE_URL/$spreadsheetId/values/$sheetName!$cell?access_token=$token&valueInputOption=USER_ENTERED'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'values': [[value]]
@@ -274,7 +455,7 @@ class GoogleSheetsService {
           final retryToken = await getAccessToken();
           if (retryToken != null) {
             final retryResp = await http.put(
-              Uri.parse('$API_BASE_URL/$SPREADSHEET_ID/values/$sheetName!$cell?access_token=$retryToken&valueInputOption=USER_ENTERED'),
+              Uri.parse('$API_BASE_URL/$spreadsheetId/values/$sheetName!$cell?access_token=$retryToken&valueInputOption=USER_ENTERED'),
               headers: {'Content-Type': 'application/json'},
               body: json.encode({'values': [[value]]}),
             );
@@ -307,10 +488,13 @@ class GoogleSheetsService {
       debugPrint('No access token available');
       return null;
     }
+
+    final spreadsheetId = await getSpreadsheetId();
+    if (spreadsheetId == null) return null;
     
     try {
       final response = await http.get(
-        Uri.parse('$API_BASE_URL/$SPREADSHEET_ID/values/$sheetName!$cell?access_token=$token'),
+        Uri.parse('$API_BASE_URL/$spreadsheetId/values/$sheetName!$cell?access_token=$token'),
       );
 
       if (response.statusCode == 401) {
@@ -319,7 +503,7 @@ class GoogleSheetsService {
         if (refreshed) {
           final retryToken = await getAccessToken();
           if (retryToken != null) {
-            final retryResp = await http.get(Uri.parse('$API_BASE_URL/$SPREADSHEET_ID/values/$sheetName!$cell?access_token=$retryToken'));
+            final retryResp = await http.get(Uri.parse('$API_BASE_URL/$spreadsheetId/values/$sheetName!$cell?access_token=$retryToken'));
             if (retryResp.statusCode != 200) {
               debugPrint('Error reading cell after refresh: ${retryResp.statusCode} - ${retryResp.body}');
               return null;
@@ -360,6 +544,12 @@ class GoogleSheetsService {
     final token = await getAccessToken();
     if (token == null) {
       debugPrint('No access token available for sync');
+      return false;
+    }
+
+    final spreadsheetId = await getSpreadsheetId();
+    if (spreadsheetId == null) {
+      debugPrint('Cannot get spreadsheet ID for sync');
       return false;
     }
 
@@ -614,7 +804,7 @@ class GoogleSheetsService {
 
       // 4. Gửi Request Batch Update
       var response = await http.post(
-        Uri.parse('$API_BASE_URL/$SPREADSHEET_ID:batchUpdate?access_token=$token'),
+        Uri.parse('$API_BASE_URL/$spreadsheetId:batchUpdate?access_token=$token'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'requests': requests}),
       );
@@ -626,7 +816,7 @@ class GoogleSheetsService {
           final retryToken = await getAccessToken();
           if (retryToken != null) {
             response = await http.post(
-              Uri.parse('$API_BASE_URL/$SPREADSHEET_ID:batchUpdate?access_token=$retryToken'),
+              Uri.parse('$API_BASE_URL/$spreadsheetId:batchUpdate?access_token=$retryToken'),
               headers: {'Content-Type': 'application/json'},
               body: json.encode({'requests': requests}),
             );

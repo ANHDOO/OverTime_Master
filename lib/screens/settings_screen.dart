@@ -17,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _totalSalaryController;
   late TextEditingController _allowanceController;
   late TextEditingController _leaveDaysController;
+  late TextEditingController _bhxhController;
   bool _useMonthlySalary = true;
   
   final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
@@ -25,13 +26,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     final provider = Provider.of<OvertimeProvider>(context, listen: false);
-    _rateController = TextEditingController(text: provider.hourlyRate.toStringAsFixed(0));
+    final formatter = NumberFormat.decimalPattern('vi_VN');
+
+    _rateController = TextEditingController(text: formatter.format(provider.hourlyRate));
     _totalSalaryController = TextEditingController(
-        text: provider.monthlySalary != null && provider.monthlySalary! > 0 
-            ? provider.monthlySalary!.toStringAsFixed(0) 
-            : '15000000');
-    _allowanceController = TextEditingController(text: provider.allowance.toStringAsFixed(0));
+        text: formatter.format(provider.monthlySalary != null && provider.monthlySalary! > 0 
+            ? provider.monthlySalary! 
+            : 15000000));
+    _allowanceController = TextEditingController(text: formatter.format(provider.allowance));
     _leaveDaysController = TextEditingController(text: provider.leaveDays.toString());
+    _bhxhController = TextEditingController(text: formatter.format(provider.bhxhDeduction));
     _useMonthlySalary = provider.monthlySalary == null || provider.monthlySalary! >= 0;
   }
 
@@ -41,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _totalSalaryController.dispose();
     _allowanceController.dispose();
     _leaveDaysController.dispose();
+    _bhxhController.dispose();
     super.dispose();
   }
 
@@ -101,13 +106,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 20),
                   
-                  // Leave Days
                   _buildInputSection(
                     title: 'Số ngày nghỉ trong tháng',
                     subtitle: 'Nghỉ không lương hoặc trừ phép năm',
                     controller: _leaveDaysController,
                     hint: '0',
                     icon: Icons.event_busy_rounded,
+                    isDark: isDark,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // BHXH Deduction
+                  _buildInputSection(
+                    title: 'Tiền bảo hiểm xã hội (BHXH)',
+                    subtitle: 'Khoản trừ khi tính thu nhập thực tế',
+                    controller: _bhxhController,
+                    hint: 'Ví dụ: 557,550',
+                    icon: Icons.security_rounded,
                     isDark: isDark,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -272,6 +288,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final allowance = double.tryParse(_allowanceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
     final leaveDays = int.tryParse(_leaveDaysController.text) ?? 0;
     final baseSalary = totalSalary - allowance;
+    final bhxh = double.tryParse(_bhxhController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
     final workingDays = provider.getWorkingDaysInMonth();
     final actualWorkingDays = workingDays - leaveDays;
     final hourlyRate = _calculateHourlyRate(provider);
@@ -332,8 +349,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       _buildSummaryRow('Lương hợp đồng', currencyFormat.format(totalSalary)),
                       _buildSummaryRow('Phụ cấp cố định', '- ${currencyFormat.format(allowance)}'),
+                      _buildSummaryRow('Tiền BHXH (trừ)', '- ${currencyFormat.format(bhxh)}'),
                       Divider(color: Colors.white.withOpacity(0.2), height: 16),
-                      _buildSummaryRow('Lương cơ bản (OT)', currencyFormat.format(baseSalary), highlight: true),
+                      _buildSummaryRow('Thu nhập cơ sở', currencyFormat.format(totalSalary - bhxh), highlight: true),
                     ],
                   ),
                 ),
@@ -469,11 +487,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final totalSalary = double.tryParse(_totalSalaryController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
         final allowance = double.tryParse(_allowanceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
         final leaveDays = int.tryParse(_leaveDaysController.text) ?? 0;
+        final bhxh = double.tryParse(_bhxhController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
         
         await provider.saveSalarySettings(
           totalSalary: totalSalary,
           allowance: allowance,
           leaveDays: leaveDays,
+          bhxhDeduction: bhxh,
           hourlyRate: hourlyRate,
         );
         _showSuccess('Đã cập nhật lương và tính lại tất cả thẻ OT!');
@@ -488,10 +508,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else {
       final rate = double.tryParse(_rateController.text.replaceAll(',', '').replaceAll('.', ''));
       if (rate != null && rate > 0) {
+        final bhxh = double.tryParse(_bhxhController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
         await provider.saveSalarySettings(
           totalSalary: 0,
           allowance: 0,
           leaveDays: 0,
+          bhxhDeduction: bhxh,
           hourlyRate: rate,
         );
         _showSuccess('Đã cập nhật lương/giờ và tính lại tất cả thẻ OT!');

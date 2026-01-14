@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ class OvertimeProvider with ChangeNotifier {
   double? _monthlySalary = 18000000.0;
   double _allowance = 945000.0;
   int _leaveDays = 0;
+  double _bhxhDeduction = 557550.0;
   bool _isLoading = false;
   bool _hasUpdate = false;
   UpdateInfo? _updateInfo;
@@ -39,6 +41,7 @@ class OvertimeProvider with ChangeNotifier {
   double? get monthlySalary => _monthlySalary;
   double get allowance => _allowance;
   int get leaveDays => _leaveDays;
+  double get bhxhDeduction => _bhxhDeduction;
   bool get isLoading => _isLoading;
   bool get hasUpdate => _hasUpdate;
   UpdateInfo? get updateInfo => _updateInfo;
@@ -93,6 +96,7 @@ class OvertimeProvider with ChangeNotifier {
       _monthlySalary = await _settingsService.getMonthlySalary();
       _allowance = await _settingsService.getAllowance();
       _leaveDays = await _settingsService.getLeaveDays();
+      _bhxhDeduction = await _settingsService.getBhxhDeduction();
       _entries = await _storageService.getAllEntries();
       _debtEntries = await _storageService.getAllDebtEntries();
       _cashTransactions = await _storageService.getAllCashTransactions();
@@ -191,25 +195,33 @@ class OvertimeProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateBhxhDeduction(double amount) async {
+    await _settingsService.setBhxhDeduction(amount);
+    _bhxhDeduction = amount;
+    notifyListeners();
+  }
+
   Future<void> saveSalarySettings({
     required double totalSalary,
     required double allowance,
     required int leaveDays,
+    required double bhxhDeduction,
     required double hourlyRate,
   }) async {
     await _settingsService.setMonthlySalary(totalSalary);
     await _settingsService.setAllowance(allowance);
     await _settingsService.setLeaveDays(leaveDays);
+    await _settingsService.setBhxhDeduction(bhxhDeduction);
     await _settingsService.setHourlyRate(hourlyRate);
     
     _monthlySalary = totalSalary;
     _allowance = allowance;
     _leaveDays = leaveDays;
+    _bhxhDeduction = bhxhDeduction;
     _hourlyRate = hourlyRate;
 
     await _recalculateAllEntries();
     notifyListeners();
-    _triggerAutoBackup();
   }
 
   Future<void> _recalculateAllEntries() async {
@@ -243,15 +255,29 @@ class OvertimeProvider with ChangeNotifier {
     required DateTime date,
     required TimeOfDay startTime,
     required TimeOfDay endTime,
+    String? shiftsJson,
+    int? id,
   }) async {
-    final calculations = OvertimeCalculator.calculateHours(
-      date: date,
-      startTime: startTime,
-      endTime: endTime,
-      hourlyRate: _hourlyRate,
-    );
+    Map<String, double> calculations;
+    
+    if (shiftsJson != null) {
+      final List<dynamic> shiftsList = jsonDecode(shiftsJson);
+      calculations = OvertimeCalculator.calculateMultiShiftHours(
+        date: date,
+        shifts: shiftsList.cast<Map<String, dynamic>>(),
+        hourlyRate: _hourlyRate,
+      );
+    } else {
+      calculations = OvertimeCalculator.calculateHours(
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        hourlyRate: _hourlyRate,
+      );
+    }
 
     final entry = OvertimeEntry(
+      id: id,
       date: date,
       startTime: startTime,
       endTime: endTime,
@@ -261,24 +287,26 @@ class OvertimeProvider with ChangeNotifier {
       hours20: calculations['hours20']!,
       hourlyRate: _hourlyRate,
       totalPay: calculations['totalPay']!,
+      shiftsJson: shiftsJson,
     );
 
-    await _storageService.insertEntry(entry);
+    if (id != null) {
+      await _storageService.updateEntry(entry);
+    } else {
+      await _storageService.insertEntry(entry);
+    }
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   // Add an existing entry object (useful for Undo)
   Future<void> addEntryObject(OvertimeEntry entry) async {
     await _storageService.insertEntry(entry);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   Future<void> deleteEntry(int id) async {
     await _storageService.deleteEntry(id);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   /// Restore a previously deleted entry (for undo functionality)
@@ -299,13 +327,11 @@ class OvertimeProvider with ChangeNotifier {
     );
     await _storageService.insertDebtEntry(entry);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   Future<void> deleteDebtEntry(int id) async {
     await _storageService.deleteDebtEntry(id);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   Future<void> toggleDebtPaid(DebtEntry entry) async {
@@ -316,13 +342,11 @@ class OvertimeProvider with ChangeNotifier {
     );
     await _storageService.updateDebtEntry(updatedEntry);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   Future<void> updateDebtEntry(DebtEntry entry) async {
     await _storageService.updateDebtEntry(entry);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   // Cash Transaction methods
@@ -351,7 +375,6 @@ class OvertimeProvider with ChangeNotifier {
     
     // Tự động sync lên Google Sheets
     await _syncProjectToSheets(project);
-    _triggerAutoBackup();
   }
 
   Future<void> deleteCashTransaction(int id) async {
@@ -379,7 +402,6 @@ class OvertimeProvider with ChangeNotifier {
     
     // Sync lại sau khi xóa
     await _syncProjectToSheets(project);
-    _triggerAutoBackup();
   }
 
   /// Tính dung lượng ảnh chứng từ (trong documents)
@@ -434,7 +456,6 @@ class OvertimeProvider with ChangeNotifier {
     if (transaction.project != oldProject) {
       await _syncProjectToSheets(transaction.project);
     }
-    _triggerAutoBackup();
   }
   
   /// Tính tổng income và expense theo project
@@ -495,8 +516,6 @@ class OvertimeProvider with ChangeNotifier {
       
       if (success) {
         debugPrint('✅ Đã đồng bộ project $project lên Google Sheets');
-        // Auto-backup keys after successful sync
-        await _backupSheetsKeysIfNeeded();
       } else {
         debugPrint('❌ Lỗi khi đồng bộ project $project');
       }
@@ -515,41 +534,6 @@ class OvertimeProvider with ChangeNotifier {
     }
   }
 
-  /// Backup Google Sheets keys lên Drive (được gọi tự động khi sync)
-  Future<void> _backupSheetsKeysIfNeeded() async {
-    try {
-      final sheetsService = GoogleSheetsService();
-      final hasKeys = await sheetsService.hasKeys();
-      if (!hasKeys) return; // No keys to backup
-
-      // Check if we already backed up keys recently (within last hour)
-      final prefs = await SharedPreferences.getInstance();
-      final lastBackupStr = prefs.getString('last_keys_backup_timestamp');
-      if (lastBackupStr != null) {
-        final lastBackup = DateTime.parse(lastBackupStr);
-        final now = DateTime.now();
-        if (now.difference(lastBackup).inHours < 1) {
-          return; // Already backed up recently
-        }
-      }
-
-      // Import backup service dynamically to avoid circular dependency
-      final backupService = BackupService();
-
-      // Try silent sign-in first
-      final signedIn = await backupService.signInSilently();
-      if (signedIn) {
-        final success = await backupService.backupSheetsKeys();
-        if (success) {
-          await prefs.setString('last_keys_backup_timestamp', DateTime.now().toIso8601String());
-          debugPrint('✅ Auto-backed up Google Sheets keys');
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ Failed to auto-backup keys: $e');
-      // Don't throw error - this is background operation
-    }
-  }
 
   /// Tính tổng thu nhập thực tế tháng này (Lương chính + Phụ cấp + OT thực tế)
   double getTotalIncomeSoFar() {
@@ -566,7 +550,7 @@ class OvertimeProvider with ChangeNotifier {
       }
     }
     final baseIncome = (monthlySalary ?? 0);
-    return baseIncome + totalOT;
+    return baseIncome + totalOT - _bhxhDeduction;
   }
 
   /// Phân tích xu hướng làm việc theo thứ trong tuần
@@ -591,34 +575,16 @@ class OvertimeProvider with ChangeNotifier {
   Future<void> addCitizenProfile(CitizenProfile profile) async {
     await _storageService.insertCitizenProfile(profile);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   Future<void> updateCitizenProfile(CitizenProfile profile) async {
     await _storageService.updateCitizenProfile(profile);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
   Future<void> deleteCitizenProfile(int id) async {
     await _storageService.deleteCitizenProfile(id);
     await fetchEntries();
-    _triggerAutoBackup();
   }
 
-  /// Tự động sao lưu dữ liệu lên Google Drive nếu đã đăng nhập
-  Future<void> _triggerAutoBackup() async {
-    try {
-      final backupService = BackupService();
-      final signedIn = await backupService.signInSilently();
-      if (signedIn) {
-        debugPrint('☁️ Auto-backup triggered...');
-        await backupService.backupDatabase();
-        await backupService.backupSheetsKeys();
-        debugPrint('✅ Auto-backup completed');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Auto-backup failed: $e');
-    }
-  }
 }

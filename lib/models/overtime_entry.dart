@@ -11,6 +11,7 @@ class OvertimeEntry {
   final double hours20; // Sunday (2.0x)
   final double hourlyRate;
   final double totalPay;
+  final String? shiftsJson; // JSON representation of List<TimeSlot>
 
   OvertimeEntry({
     this.id,
@@ -23,6 +24,7 @@ class OvertimeEntry {
     required this.hours20,
     required this.hourlyRate,
     required this.totalPay,
+    this.shiftsJson,
   });
 
   Map<String, dynamic> toMap() {
@@ -39,6 +41,7 @@ class OvertimeEntry {
       'hours_20': hours20,
       'hourly_rate': hourlyRate,
       'total_pay': totalPay,
+      'shifts': shiftsJson,
     };
   }
 
@@ -52,8 +55,9 @@ class OvertimeEntry {
       hours15: map['hours_15'],
       hours18: map['hours_18'],
       hours20: map['hours_20'],
-      hourlyRate: map['hourly_rate'] ?? 85275.0, // Default for old entries
+      hourlyRate: map['hourly_rate'] ?? 85275.0,
       totalPay: map['total_pay'],
+      shiftsJson: map['shifts'],
     );
   }
 }

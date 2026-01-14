@@ -1,11 +1,13 @@
 import 'package:excel/excel.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Border, BorderStyle;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
+import 'dart:convert';
 import '../models/overtime_entry.dart';
+import '../utils/overtime_calculator.dart';
 
 class ExcelService {
   /// Xuất báo cáo tăng ca theo tháng cho kế toán (không tính tiền)
@@ -79,14 +81,47 @@ class ExcelService {
       ..value = TextCellValue(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()))
       ..cellStyle = infoStyle;
     
-    // === HEADER BẢNG ===
+    // === BORDERS & STYLES ===
+    final Border thinBorder = Border(
+      borderStyle: BorderStyle.Thin,
+    );
+
+    // Header Style
     final tableHeaderStyle = CellStyle(
       bold: true,
       fontSize: 11,
       fontFamily: 'Times New Roman',
       horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
       backgroundColorHex: ExcelColor.fromHexString('#4472C4'),
       fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+      topBorder: thinBorder,
+      bottomBorder: thinBorder,
+      leftBorder: thinBorder,
+      rightBorder: thinBorder,
+    );
+
+    // Data Styles
+    final dataStyleCenter = CellStyle(
+      fontFamily: 'Times New Roman', 
+      fontSize: 11,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      topBorder: thinBorder,
+      bottomBorder: thinBorder,
+      leftBorder: thinBorder,
+      rightBorder: thinBorder,
+    );
+    
+    final dataStyleRight = CellStyle(
+      fontFamily: 'Times New Roman', 
+      fontSize: 11,
+      horizontalAlign: HorizontalAlign.Right,
+      verticalAlign: VerticalAlign.Center,
+      topBorder: thinBorder,
+      bottomBorder: thinBorder,
+      leftBorder: thinBorder,
+      rightBorder: thinBorder,
     );
     
     final headers = [
@@ -111,71 +146,108 @@ class ExcelService {
     
     // === DATA ROWS ===
     final weekDays = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
-    final dataStyle = CellStyle(fontFamily: 'Times New Roman', fontSize: 11);
     
     double total15 = 0, total18 = 0, total20 = 0;
+    int currentRow = headerRow + 1;
+    int sttCounter = 1;
     
-    for (var i = 0; i < monthEntries.length; i++) {
-      final entry = monthEntries[i];
-      final row = headerRow + 1 + i;
-      
-      // Xác định loại OT
-      String otType;
-      if (entry.isSunday) {
-        otType = 'Chủ nhật';
-      } else if (entry.hours18 > 0) {
-        otType = 'Đêm';
+    for (var entry in monthEntries) {
+      List<dynamic> shifts = [];
+      if (entry.shiftsJson != null) {
+        try {
+          shifts = jsonDecode(entry.shiftsJson!);
+        } catch (_) {}
+      }
+
+      if (shifts.isEmpty) {
+        // --- Single Shift Case ---
+        String otType = entry.isSunday ? 'Chủ nhật' : (entry.hours18 > 0 ? 'Đêm' : 'Chiều');
+        final totalHours = entry.hours15 + entry.hours18 + entry.hours20;
+
+        _writeExcelRow(
+          sheet: sheet,
+          row: currentRow,
+          stt: sttCounter.toString(),
+          date: DateFormat('dd/MM/yyyy').format(entry.date),
+          dayOfWeek: weekDays[entry.date.weekday],
+          startTime: '${entry.startTime.hour.toString().padLeft(2, '0')}:${entry.startTime.minute.toString().padLeft(2, '0')}',
+          endTime: '${entry.endTime.hour.toString().padLeft(2, '0')}:${entry.endTime.minute.toString().padLeft(2, '0')}',
+          otType: otType,
+          h15: entry.hours15,
+          h18: entry.hours18,
+          h20: entry.hours20,
+          total: totalHours,
+          styleCenter: dataStyleCenter,
+          styleRight: dataStyleRight,
+        );
+        
+        currentRow++;
       } else {
-        otType = 'Chiều';
+        // --- Multi Shift Case ---
+        final int startRow = currentRow;
+        for (int i = 0; i < shifts.length; i++) {
+          final shiftData = shifts[i];
+          final startTime = TimeOfDay(hour: shiftData['start_hour'], minute: shiftData['start_minute']);
+          final endTime = TimeOfDay(hour: shiftData['end_hour'], minute: shiftData['end_minute']);
+          
+          final calc = OvertimeCalculator.calculateHours(
+            date: entry.date,
+            startTime: startTime,
+            endTime: endTime,
+            hourlyRate: entry.hourlyRate,
+          );
+
+          String otType = entry.isSunday ? 'Chủ nhật' : (calc['hours18']! > 0 ? 'Đêm' : 'Chiều');
+          final totalHours = calc['hours15']! + calc['hours18']! + calc['hours20']!;
+
+          _writeExcelRow(
+            sheet: sheet,
+            row: currentRow,
+            stt: i == 0 ? sttCounter.toString() : '',
+            date: i == 0 ? DateFormat('dd/MM/yyyy').format(entry.date) : '',
+            dayOfWeek: i == 0 ? weekDays[entry.date.weekday] : '',
+            startTime: '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}',
+            endTime: '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
+            otType: otType,
+            h15: calc['hours15']!,
+            h18: calc['hours18']!,
+            h20: calc['hours20']!,
+            total: totalHours,
+            styleCenter: dataStyleCenter,
+            styleRight: dataStyleRight,
+          );
+          
+          currentRow++;
+        }
+        
+        // Merge STT, Ngày, Thứ for multi-shift entry
+        if (shifts.length > 1) {
+          for (int col = 0; col <= 2; col++) {
+            sheet.merge(
+              CellIndex.indexByColumnRow(columnIndex: col, rowIndex: startRow),
+              CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow - 1),
+            );
+          }
+        }
       }
       
-      final totalHours = entry.hours15 + entry.hours18 + entry.hours20;
-      
-      // Ghi dữ liệu với Times New Roman font
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-        ..value = IntCellValue(i + 1)
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-        ..value = TextCellValue(DateFormat('dd/MM/yyyy').format(entry.date))
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
-        ..value = TextCellValue(weekDays[entry.date.weekday])
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
-        ..value = TextCellValue('${entry.startTime.hour.toString().padLeft(2, '0')}:${entry.startTime.minute.toString().padLeft(2, '0')}')
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
-        ..value = TextCellValue('${entry.endTime.hour.toString().padLeft(2, '0')}:${entry.endTime.minute.toString().padLeft(2, '0')}')
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row))
-        ..value = TextCellValue(otType)
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row))
-        ..value = DoubleCellValue(entry.hours15)
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row))
-        ..value = DoubleCellValue(entry.hours18)
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row))
-        ..value = DoubleCellValue(entry.hours20)
-        ..cellStyle = dataStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row))
-        ..value = DoubleCellValue(totalHours)
-        ..cellStyle = dataStyle;
-      
-      // Cộng dồn
       total15 += entry.hours15;
       total18 += entry.hours18;
       total20 += entry.hours20;
+      sttCounter++;
     }
     
     // === TỔNG CỘNG ===
-    final summaryRow = headerRow + 1 + monthEntries.length + 1;
+    final summaryRow = currentRow + 1;
     final summaryStyle = CellStyle(
       bold: true,
       fontSize: 11,
       fontFamily: 'Times New Roman',
       backgroundColorHex: ExcelColor.fromHexString('#D9E2F3'),
+      topBorder: thinBorder,
+      bottomBorder: thinBorder,
+      leftBorder: thinBorder,
+      rightBorder: thinBorder,
     );
     
     sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: summaryRow), 
@@ -358,5 +430,54 @@ class ExcelService {
         );
       }
     }
+  }
+
+  /// Helper to write a data row to Excel
+  static void _writeExcelRow({
+    required Sheet sheet,
+    required int row,
+    required String stt,
+    required String date,
+    required String dayOfWeek,
+    required String startTime,
+    required String endTime,
+    required String otType,
+    required double h15,
+    required double h18,
+    required double h20,
+    required double total,
+    required CellStyle styleCenter,
+    required CellStyle styleRight,
+  }) {
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+      ..value = TextCellValue(stt)
+      ..cellStyle = styleCenter;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+      ..value = TextCellValue(date)
+      ..cellStyle = styleCenter;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+      ..value = TextCellValue(dayOfWeek)
+      ..cellStyle = styleCenter;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+      ..value = TextCellValue(startTime)
+      ..cellStyle = styleCenter;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+      ..value = TextCellValue(endTime)
+      ..cellStyle = styleCenter;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row))
+      ..value = TextCellValue(otType)
+      ..cellStyle = styleCenter;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row))
+      ..value = DoubleCellValue(h15)
+      ..cellStyle = styleRight;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row))
+      ..value = DoubleCellValue(h18)
+      ..cellStyle = styleRight;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row))
+      ..value = DoubleCellValue(h20)
+      ..cellStyle = styleRight;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row))
+      ..value = DoubleCellValue(total)
+      ..cellStyle = styleRight;
   }
 }

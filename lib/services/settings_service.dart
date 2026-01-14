@@ -5,9 +5,11 @@ class SettingsService {
   static const String _monthlySalaryKey = 'monthly_salary';
   static const String _allowanceKey = 'fixed_allowance';
   static const String _leaveDaysKey = 'leave_days';
+  static const String _bhxhDeductionKey = 'bhxh_deduction';
   static const double _defaultRate = 85275.0;
   static const double _defaultAllowance = 945000.0;
   static const double _defaultMonthlySalary = 18000000.0;
+  static const double _defaultBhxhDeduction = 557550.0;
 
   Future<double> getHourlyRate() async {
     final prefs = await SharedPreferences.getInstance();
@@ -47,5 +49,15 @@ class SettingsService {
   Future<void> setLeaveDays(int days) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_leaveDaysKey, days);
+  }
+
+  Future<double> getBhxhDeduction() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_bhxhDeductionKey) ?? _defaultBhxhDeduction;
+  }
+
+  Future<void> setBhxhDeduction(double amount) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_bhxhDeductionKey, amount);
   }
 }

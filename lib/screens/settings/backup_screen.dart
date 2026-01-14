@@ -267,31 +267,36 @@ class _BackupScreenState extends State<BackupScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildGoogleSignInSection(isDark),
-                if (_isSignedIn) ...[
-                  const SizedBox(height: 20),
-                  const SizedBox(height: 20),
-                  _buildBackupActions(isDark),
-                  if (_lastBackupInfo != null) ...[const SizedBox(height: 20), _buildLastBackupInfo(isDark)],
-                  if (_lastRestoreInfo != null) ...[const SizedBox(height: 20), _buildLastRestoreInfo(isDark)],
-                  const SizedBox(height: 20),
-                  _buildBackupList(isDark),
-                ] else if (!_isInitializing) ...[
-                  const SizedBox(height: 60),
-                  Center(child: Column(
-                    children: [
-                      Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant, shape: BoxShape.circle), child: Icon(Icons.cloud_off_rounded, size: 48, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                      const SizedBox(height: 20),
-                      Text('Đăng nhập để sử dụng backup', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                    ],
-                  )),
+          RefreshIndicator(
+            onRefresh: _loadBackupData,
+            color: AppColors.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status indicator (no login button - use Side Menu)
+                  _buildConnectionStatus(isDark),
+                  if (_isSignedIn) ...[
+                    const SizedBox(height: 20),
+                    _buildBackupActions(isDark),
+                    if (_lastBackupInfo != null) ...[const SizedBox(height: 20), _buildLastBackupInfo(isDark)],
+                    if (_lastRestoreInfo != null) ...[const SizedBox(height: 20), _buildLastRestoreInfo(isDark)],
+                    const SizedBox(height: 20),
+                    _buildBackupList(isDark),
+                  ] else if (!_isInitializing) ...[
+                    const SizedBox(height: 60),
+                    Center(child: Column(
+                      children: [
+                        Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant, shape: BoxShape.circle), child: Icon(Icons.cloud_off_rounded, size: 48, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                        const SizedBox(height: 20),
+                        Text('Vui lòng đăng nhập Google từ Menu', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                      ],
+                    )),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           if (_isLoading) Container(color: Colors.black26, child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
@@ -300,9 +305,9 @@ class _BackupScreenState extends State<BackupScreen> {
     );
   }
 
-  Widget _buildGoogleSignInSection(bool isDark) {
+  Widget _buildConnectionStatus(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: _isSignedIn
             ? LinearGradient(colors: [AppColors.success.withValues(alpha: isDark ? 0.2 : 0.1), AppColors.successDark.withValues(alpha: isDark ? 0.15 : 0.05)])
@@ -310,37 +315,21 @@ class _BackupScreenState extends State<BackupScreen> {
         borderRadius: AppRadius.borderLg,
         border: Border.all(color: _isSignedIn ? AppColors.success.withValues(alpha: 0.3) : AppColors.warning.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: (_isSignedIn ? AppColors.success : AppColors.warning).withValues(alpha: 0.2), borderRadius: AppRadius.borderMd),
-                child: Icon(_isSignedIn ? Icons.cloud_done_rounded : Icons.cloud_off_rounded, color: _isSignedIn ? AppColors.success : AppColors.warning, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_isSignedIn ? 'Đã kết nối Google Drive' : 'Chưa kết nối', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
-                    Text(_isSignedIn ? 'Sẵn sàng sao lưu dữ liệu' : 'Đăng nhập để bắt đầu', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
           Container(
-            width: double.infinity,
-            decoration: BoxDecoration(gradient: _isSignedIn ? AppGradients.heroDanger : AppGradients.heroBlue, borderRadius: AppRadius.borderMd),
-            child: ElevatedButton.icon(
-              onPressed: _isSignedIn ? _signOut : _signIn,
-              icon: Icon(_isSignedIn ? Icons.logout_rounded : Icons.login_rounded, size: 20),
-              label: Text(_isSignedIn ? 'Đăng xuất' : 'Đăng nhập Google', style: const TextStyle(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: (_isSignedIn ? AppColors.success : AppColors.warning).withValues(alpha: 0.2), borderRadius: AppRadius.borderMd),
+            child: Icon(_isSignedIn ? Icons.cloud_done_rounded : Icons.cloud_off_rounded, color: _isSignedIn ? AppColors.success : AppColors.warning, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_isSignedIn ? 'Đã kết nối Google Drive' : 'Chưa kết nối', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                Text(_isSignedIn ? 'Sẵn sàng sao lưu dữ liệu' : 'Đăng nhập từ Menu bên trái', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontSize: 12)),
+              ],
             ),
           ),
         ],

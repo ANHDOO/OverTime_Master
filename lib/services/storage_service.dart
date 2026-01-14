@@ -23,7 +23,7 @@ class StorageService {
     String path = join(await getDatabasesPath(), 'overtime.db');
     return await openDatabase(
       path,
-      version: 12,
+      version: 13,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE overtime(
@@ -38,7 +38,8 @@ class StorageService {
             hours_18 REAL,
             hours_20 REAL,
             hourly_rate REAL,
-            total_pay REAL
+            total_pay REAL,
+            shifts TEXT
           )
         ''');
         await db.execute('''
@@ -187,6 +188,11 @@ class StorageService {
                 gold_type TEXT
               )
             ''');
+          } catch (_) {}
+        }
+        if (oldVersion < 13) {
+          try {
+            await db.execute('ALTER TABLE overtime ADD COLUMN shifts TEXT');
           } catch (_) {}
         }
       },

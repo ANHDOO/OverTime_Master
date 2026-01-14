@@ -61,4 +61,39 @@ class OvertimeCalculator {
       'totalPay': totalPay,
     };
   }
+
+  static Map<String, double> calculateMultiShiftHours({
+    required DateTime date,
+    required List<Map<String, dynamic>> shifts,
+    required double hourlyRate,
+  }) {
+    double totalHours15 = 0;
+    double totalHours18 = 0;
+    double totalHours20 = 0;
+    double totalPay = 0;
+
+    for (var shift in shifts) {
+      final startTime = TimeOfDay(hour: shift['start_hour'], minute: shift['start_minute']);
+      final endTime = TimeOfDay(hour: shift['end_hour'], minute: shift['end_minute']);
+      
+      final result = calculateHours(
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        hourlyRate: hourlyRate,
+      );
+
+      totalHours15 += result['hours15']!;
+      totalHours18 += result['hours18']!;
+      totalHours20 += result['hours20']!;
+      totalPay += result['totalPay']!;
+    }
+
+    return {
+      'hours15': totalHours15,
+      'hours18': totalHours18,
+      'hours20': totalHours20,
+      'totalPay': totalPay,
+    };
+  }
 }

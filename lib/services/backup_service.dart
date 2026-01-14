@@ -181,97 +181,7 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  // Backup Google Sheets keys to Google Drive
-  Future<bool> backupSheetsKeys() async {
-    try {
-      if (_driveApi == null) {
-        final signedIn = await signInSilently();
-        if (!signedIn) return false;
-      }
-
-      final folderId = await getOrCreateAppFolder();
-      if (folderId == null) return false;
-
-      // Get encrypted keys from GoogleSheetsService
-      final sheetsService = GoogleSheetsService();
-      final encryptedKeys = await sheetsService.exportKeys();
-
-      if (encryptedKeys == null || encryptedKeys.isEmpty) {
-        debugPrint('No Google Sheets keys to backup');
-        return true; // Not an error, just no keys to backup
-      }
-
-      // Create keys file
-      final keysBytes = utf8.encode(encryptedKeys);
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-      final keysFileName = 'sheets_keys_$timestamp.enc';
-
-      final fileMetadata = drive.File()
-        ..name = keysFileName
-        ..parents = [folderId]
-        ..description = 'Encrypted Google Sheets API keys';
-
-      // Upload file
-      final media = drive.Media(Stream.value(keysBytes), keysBytes.length);
-      final uploadedFile = await _driveApi!.files.create(
-        fileMetadata,
-        uploadMedia: media,
-      );
-
-      debugPrint('Sheets keys backup successful: ${uploadedFile.id}');
-
-      // Save keys backup info locally
-      await _saveKeysBackupInfo(keysFileName, uploadedFile.id!, keysBytes.length);
-
-      return true;
-    } catch (e) {
-      debugPrint('Backup sheets keys error: $e');
-      return false;
-    }
-  }
-
-  // Restore Google Sheets keys from Google Drive
-  Future<bool> restoreSheetsKeys({String? keysFileId}) async {
-    try {
-      if (_driveApi == null) {
-        final signedIn = await signInSilently();
-        if (!signedIn) return false;
-      }
-
-      String? fileId = keysFileId;
-      if (fileId == null) {
-        // Get latest keys backup
-        fileId = await _getLatestKeysBackupFileId();
-        if (fileId == null) return false;
-      }
-
-      // Download file
-      final file = await _driveApi!.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
-      final keysBytes = <int>[];
-      await for (final chunk in file.stream) {
-        keysBytes.addAll(chunk);
-      }
-
-      final encryptedKeys = utf8.decode(keysBytes);
-
-      // Import keys using GoogleSheetsService
-      final sheetsService = GoogleSheetsService();
-      final success = await sheetsService.importKeys(encryptedKeys);
-
-      if (success) {
-        debugPrint('Sheets keys restore successful');
-        // Save restore info
-        await _saveKeysRestoreInfo(fileId, keysBytes.length);
-      }
-
-      return success;
-    } catch (e) {
-      debugPrint('Restore sheets keys error: $e');
-      return false;
-    }
-  }
-
-  // Auto-backup database and keys together
+  // Auto-backup database
   Future<Map<String, bool>> backupAll() async {
     final results = <String, bool>{};
 
@@ -287,14 +197,11 @@ class BackupService extends ChangeNotifier {
       }
     }
 
-    // Backup Google Sheets keys
-    results['sheets_keys'] = await backupSheetsKeys();
-
     return results;
   }
 
-  // Auto-restore database and keys together
-  Future<Map<String, bool>> restoreAll({String? backupFileId, String? keysFileId}) async {
+  // Auto-restore database
+  Future<Map<String, bool>> restoreAll({String? backupFileId}) async {
     final results = <String, bool>{};
 
     // Restore database
@@ -304,43 +211,7 @@ class BackupService extends ChangeNotifier {
     final restoredImages = await restoreImages();
     results['images'] = restoredImages.isNotEmpty;
 
-    // Restore Google Sheets keys
-    results['sheets_keys'] = await restoreSheetsKeys(keysFileId: keysFileId);
-
     return results;
-  }
-
-  // Get list of keys backup files
-  Future<List<Map<String, dynamic>>> getKeysBackupList() async {
-    try {
-      if (_driveApi == null) {
-        final signedIn = await signInSilently();
-        if (!signedIn) return [];
-      }
-
-      final folderId = await getOrCreateAppFolder();
-      if (folderId == null) return [];
-
-      final query = "'$folderId' in parents and name contains 'sheets_keys' and trashed = false";
-      final files = await _driveApi!.files.list(
-        q: query,
-        orderBy: 'createdTime desc',
-        pageSize: 10,
-        $fields: 'files(id, name, createdTime, size)',
-      );
-
-      return files.files?.map((file) {
-        return {
-          'id': file.id,
-          'name': file.name,
-          'createdTime': file.createdTime,
-          'size': file.size,
-        };
-      }).toList() ?? [];
-    } catch (e) {
-      debugPrint('Error getting keys backup list: $e');
-      return [];
-    }
   }
 
   // Restore database from Google Drive
@@ -413,7 +284,7 @@ class BackupService extends ChangeNotifier {
         return {
           'id': file.id,
           'name': file.name,
-          'createdTime': file.createdTime,
+          'createdTime': file.createdTime?.toLocal(),
           'size': file.size,
         };
       }).toList() ?? [];
@@ -591,44 +462,6 @@ class BackupService extends ChangeNotifier {
     return info != null ? json.decode(info) : null;
   }
 
-  // Helper methods for keys backup/restore
-  Future<String?> _getLatestKeysBackupFileId() async {
-    final keysBackups = await getKeysBackupList();
-    return keysBackups.isNotEmpty ? keysBackups.first['id'] as String : null;
-  }
-
-  Future<void> _saveKeysBackupInfo(String fileName, String fileId, int size) async {
-    final prefs = await SharedPreferences.getInstance();
-    final backupInfo = {
-      'fileName': fileName,
-      'fileId': fileId,
-      'size': size,
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-    await prefs.setString('last_keys_backup_info', json.encode(backupInfo));
-  }
-
-  Future<void> _saveKeysRestoreInfo(String fileId, int size) async {
-    final prefs = await SharedPreferences.getInstance();
-    final restoreInfo = {
-      'fileId': fileId,
-      'size': size,
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-    await prefs.setString('last_keys_restore_info', json.encode(restoreInfo));
-  }
-
-  Future<Map<String, dynamic>?> getLastKeysBackupInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final info = prefs.getString('last_keys_backup_info');
-    return info != null ? json.decode(info) : null;
-  }
-
-  Future<Map<String, dynamic>?> getLastKeysRestoreInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final info = prefs.getString('last_keys_restore_info');
-    return info != null ? json.decode(info) : null;
-  }
 
   // Helper methods for getting provider and image paths
   Future<dynamic> _getOvertimeProvider() async {

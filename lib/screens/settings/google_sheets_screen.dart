@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/google_sheets_service.dart';
@@ -13,90 +14,29 @@ class GoogleSheetsScreen extends StatefulWidget {
 }
 
 class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
-  final TextEditingController _tokenController = TextEditingController();
-  final TextEditingController _refreshTokenController = TextEditingController();
-  final TextEditingController _clientIdController = TextEditingController();
-  final TextEditingController _clientSecretController = TextEditingController();
   String _status = '';
   bool _isSyncing = false;
+  bool _isSigningIn = false;
+  bool _isSignedIn = false;
+  String? _signedInEmail;
 
   @override
   void initState() {
     super.initState();
-    _loadToken();
+    _checkGoogleSignInStatus();
   }
 
-  Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _tokenController.text = prefs.getString('google_sheets_access_token') ?? '';
-      _refreshTokenController.text = prefs.getString('google_sheets_refresh_token') ?? '';
-      _clientIdController.text = prefs.getString('google_sheets_client_id') ?? '';
-      _clientSecretController.text = prefs.getString('google_sheets_client_secret') ?? '';
-    });
-  }
-
-  Future<void> _saveToken() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Future<void> _checkGoogleSignInStatus() async {
     final service = GoogleSheetsService();
-    await service.setAccessToken(_tokenController.text.trim());
-    await service.setRefreshToken(_refreshTokenController.text.trim());
-    await service.setClientId(_clientIdController.text.trim());
-    await service.setClientSecret(_clientSecretController.text.trim());
-    
+    final isSignedIn = await service.isSignedInWithGoogle();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white),
-              const SizedBox(width: 12),
-              const Text('Đã lưu cấu hình Google Sheets!'),
-            ],
-          ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-        ),
-      );
+      setState(() {
+        _isSignedIn = isSignedIn;
+        _signedInEmail = service.currentUserEmail;
+      });
     }
   }
 
-  void _smartPaste() async {
-    final text = _tokenController.text;
-    if (text.contains('ACCESS TOKEN:') || text.contains('REFRESH TOKEN:')) {
-      _parseAndPopulate(text);
-    }
-  }
-
-  void _parseAndPopulate(String text) {
-    final accessTokenMatch = RegExp(r'ACCESS TOKEN:\s*([^\n\r]+)').firstMatch(text);
-    final refreshTokenMatch = RegExp(r'REFRESH TOKEN:\s*([^\n\r]+)').firstMatch(text);
-    final clientIdMatch = RegExp(r'CLIENT ID:\s*([^\n\r]+)').firstMatch(text);
-    final clientSecretMatch = RegExp(r'CLIENT SECRET:\s*([^\n\r]+)').firstMatch(text);
-
-    setState(() {
-      if (accessTokenMatch != null) _tokenController.text = accessTokenMatch.group(1)!.trim();
-      if (refreshTokenMatch != null) _refreshTokenController.text = refreshTokenMatch.group(1)!.trim();
-      if (clientIdMatch != null) _clientIdController.text = clientIdMatch.group(1)!.trim();
-      if (clientSecretMatch != null) _clientSecretController.text = clientSecretMatch.group(1)!.trim();
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.auto_fix_high_rounded, color: Colors.white),
-            const SizedBox(width: 12),
-            const Text('Đã tự động điền các trường!'),
-          ],
-        ),
-        backgroundColor: AppColors.info,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-      ),
-    );
-  }
 
   Future<void> _syncAll() async {
     final provider = Provider.of<OvertimeProvider>(context, listen: false);
@@ -129,10 +69,6 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
 
   @override
   void dispose() {
-    _tokenController.dispose();
-    _refreshTokenController.dispose();
-    _clientIdController.dispose();
-    _clientSecretController.dispose();
     super.dispose();
   }
 
@@ -147,20 +83,257 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header with sync status
             _buildHeader(isDark),
             const SizedBox(height: 20),
-            _buildInputField(_tokenController, 'Access Token', Icons.key_rounded, isDark, maxLines: 2, showAutoFill: true),
-            const SizedBox(height: 12),
-            _buildInputField(_refreshTokenController, 'Refresh Token', Icons.refresh_rounded, isDark),
-            const SizedBox(height: 12),
-            _buildInputField(_clientIdController, 'Client ID', Icons.badge_rounded, isDark),
-            const SizedBox(height: 12),
-            _buildInputField(_clientSecretController, 'Client Secret', Icons.lock_rounded, isDark, isSecret: true),
-            const SizedBox(height: 24),
-            _buildActionButtons(isDark),
+            
+            // Google Sign-In Status
+            if (_isSignedIn) ...[
+              
+              _buildSyncActions(isDark),
+              const SizedBox(height: 24),
+              
+              // Synced Projects List
+              _buildSyncedProjects(isDark),
+            ] else ...[
+              _buildSignInPrompt(isDark),
+            ],
+            
             const SizedBox(height: 16),
             if (_status.isNotEmpty) _buildStatusIndicator(isDark),
           ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildSyncActions(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceVariant.withOpacity(0.5) : AppColors.lightSurfaceVariant,
+        borderRadius: AppRadius.borderLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.sync_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Đồng bộ dữ liệu',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isSyncing ? null : _syncAll,
+                  icon: _isSyncing
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(Icons.cloud_upload_rounded),
+                  label: Text(_isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ tất cả'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: _openGoogleSheets,
+                icon: Icon(Icons.open_in_new_rounded),
+                label: Text('Mở Sheets'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSyncedProjects(bool isDark) {
+    return FutureBuilder<List<String>>(
+      future: _getSyncedProjects(),
+      builder: (context, snapshot) {
+        final projects = snapshot.data ?? [];
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurfaceVariant.withOpacity(0.5) : AppColors.lightSurfaceVariant,
+            borderRadius: AppRadius.borderLg,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.folder_rounded, color: AppColors.tealPrimary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Dự án đã đồng bộ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${projects.length} dự án',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (projects.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Icon(Icons.cloud_off_rounded, size: 40, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Chưa có dự án nào được đồng bộ',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...projects.map((project) => _buildProjectItem(project, isDark)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProjectItem(String projectName, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle_outline, color: AppColors.success, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              projectName,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignInPrompt(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: AppRadius.borderLg,
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            'Chưa đăng nhập Google',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Vui lòng đăng nhập Google từ Menu bên trái để sử dụng tính năng đồng bộ Google Sheets.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<String>> _getSyncedProjects() async {
+    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final projects = provider.cashTransactions
+        .map((t) => t.project)
+        .where((p) => p != 'Mặc định')
+        .toSet()
+        .toList();
+    return projects;
+  }
+
+  Future<void> _openGoogleSheets() async {
+    final sheetsService = GoogleSheetsService();
+    final spreadsheetId = await sheetsService.getSpreadsheetId();
+    
+    if (spreadsheetId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có trang tính nào được tạo')),
+      );
+      return;
+    }
+
+    final url = 'https://docs.google.com/spreadsheets/d/$spreadsheetId/edit';
+    
+    // Note: url_launcher was removed, so we'll just show a message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Link: $url'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'COPY',
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: url)).then((_) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Đã sao chép liên kết vào bộ nhớ tạm')),
+              );
+            });
+          },
         ),
       ),
     );
@@ -198,7 +371,7 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Cấu hình Google Sheets API',
+                      'Đồng bộ Google Sheets',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
@@ -207,7 +380,7 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Đồng bộ dữ liệu lên Google Sheets',
+                      'Dữ liệu được lưu vào file "OverTime Master - Quỹ Dự Án"',
                       style: TextStyle(
                         fontSize: 13,
                         color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
@@ -218,115 +391,8 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            'Dán toàn bộ kết quả từ script get_google_sheets_token.py vào ô Access Token rồi nhấn nút "Tự động điền" hoặc nhập từng trường.',
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.4,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-            ),
-          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildInputField(
-    TextEditingController controller,
-    String label,
-    IconData icon,
-    bool isDark, {
-    int maxLines = 1,
-    bool isSecret = false,
-    bool showAutoFill = false,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isSecret,
-      maxLines: maxLines,
-      style: TextStyle(
-        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        fontWeight: FontWeight.w500,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Container(
-          margin: const EdgeInsets.all(8),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(isDark ? 0.2 : 0.1),
-            borderRadius: AppRadius.borderSm,
-          ),
-          child: Icon(icon, color: AppColors.success, size: 20),
-        ),
-        suffixIcon: showAutoFill
-            ? IconButton(
-                icon: Icon(Icons.auto_fix_high_rounded, color: AppColors.info),
-                onPressed: _smartPaste,
-                tooltip: 'Tự động điền từ nội dung đã dán',
-              )
-            : null,
-        filled: true,
-        fillColor: isDark ? AppColors.darkSurfaceVariant.withOpacity(0.5) : AppColors.lightSurfaceVariant,
-        border: OutlineInputBorder(borderRadius: AppRadius.borderMd, borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppRadius.borderMd,
-          borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppRadius.borderMd,
-          borderSide: BorderSide(color: AppColors.success, width: 2),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(bool isDark) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: AppGradients.heroBlue,
-              borderRadius: AppRadius.borderMd,
-            ),
-            child: ElevatedButton.icon(
-              onPressed: _saveToken,
-              icon: const Icon(Icons.save_rounded, color: Colors.white, size: 20),
-              label: const Text('Lưu cấu hình', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: AppGradients.heroGreen,
-              borderRadius: AppRadius.borderMd,
-            ),
-            child: ElevatedButton.icon(
-              onPressed: _isSyncing ? null : _syncAll,
-              icon: _isSyncing
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.sync_rounded, color: Colors.white, size: 20),
-              label: Text(_isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ ngay', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

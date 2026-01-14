@@ -90,8 +90,8 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
     // 3. Parse and Format
     final number = double.tryParse(text);
     if (number != null) {
-      // Vietnamese format uses dot as thousand separator
-      final formatted = NumberFormat('#,###', 'vi_VN').format(number);
+      // Use standard decimal pattern for the locale (Vietnamese uses . as thousand separator)
+      final formatted = NumberFormat.decimalPattern('vi_VN').format(number);
       
       if (widget.controller.text != formatted) {
         widget.controller.removeListener(_onTextChanged);
@@ -199,7 +199,7 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
         TextField(
           controller: widget.controller,
           keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
           style: widget.style ?? TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,

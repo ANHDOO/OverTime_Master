@@ -11,15 +11,70 @@ import '../screens/settings/security_screen.dart';
 import '../screens/settings/update_screen.dart';
 import '../screens/citizen_search/citizen_search_screen.dart';
 import '../services/update_service.dart';
+import '../services/google_sheets_service.dart';
 
 typedef OnSelectTab = void Function(int index);
 
-class SideMenu extends StatelessWidget {
+class SideMenu extends StatefulWidget {
   final OnSelectTab onSelectTab;
   final VoidCallback? onClose;
   final int selectedIndex;
 
   const SideMenu({super.key, required this.onSelectTab, this.onClose, this.selectedIndex = -1});
+
+  @override
+  State<SideMenu> createState() => _SideMenuState();
+}
+
+class _SideMenuState extends State<SideMenu> {
+  bool _isSignedIn = false;
+  bool _isSigningIn = false;
+  String? _userEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkGoogleSignInStatus();
+  }
+
+  Future<void> _checkGoogleSignInStatus() async {
+    final service = GoogleSheetsService();
+    final isSignedIn = await service.isSignedInWithGoogle();
+    if (mounted) {
+      setState(() {
+        _isSignedIn = isSignedIn;
+        _userEmail = service.currentUserEmail;
+      });
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isSigningIn) return;
+    
+    final service = GoogleSheetsService();
+    
+    if (_isSignedIn) {
+      setState(() => _isSigningIn = true);
+      await service.signOutGoogle();
+      if (mounted) {
+        setState(() {
+          _isSigningIn = false;
+          _isSignedIn = false;
+          _userEmail = null;
+        });
+      }
+    } else {
+      setState(() => _isSigningIn = true);
+      final token = await service.signInWithGoogle();
+      if (mounted) {
+        setState(() {
+          _isSigningIn = false;
+          _isSignedIn = token != null;
+          _userEmail = service.currentUserEmail;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +106,9 @@ class SideMenu extends StatelessWidget {
               // Profile Header with Gradient
               _buildProfileHeader(context, isDark),
 
+              // Google Account Section
+              _buildGoogleAccountSection(isDark),
+
               const SizedBox(height: 4),
 
               // Menu Items
@@ -67,7 +125,7 @@ class SideMenu extends StatelessWidget {
                       index: 0,
                       gradientColors: [AppColors.tealPrimary, AppColors.tealDark],
                       onTap: () {
-                        onSelectTab(0);
+                        widget.onSelectTab(0);
                         Navigator.pop(context);
                       },
                       isDark: isDark,
@@ -79,7 +137,7 @@ class SideMenu extends StatelessWidget {
                       index: 1,
                       gradientColors: [AppColors.primary, AppColors.primaryDark],
                       onTap: () {
-                        onSelectTab(1);
+                        widget.onSelectTab(1);
                         Navigator.pop(context);
                       },
                       isDark: isDark,
@@ -91,7 +149,7 @@ class SideMenu extends StatelessWidget {
                       index: 2,
                       gradientColors: [AppColors.accent, AppColors.accentDark],
                       onTap: () {
-                        onSelectTab(2);
+                        widget.onSelectTab(2);
                         Navigator.pop(context);
                       },
                       isDark: isDark,
@@ -103,7 +161,7 @@ class SideMenu extends StatelessWidget {
                       index: 3,
                       gradientColors: [AppColors.indigoPrimary, AppColors.indigoDark],
                       onTap: () {
-                        onSelectTab(3);
+                        widget.onSelectTab(3);
                         Navigator.pop(context);
                       },
                       isDark: isDark,
@@ -364,6 +422,96 @@ class SideMenu extends StatelessWidget {
     );
   }
 
+  Widget _buildGoogleAccountSection(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _isSignedIn ? Colors.green.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _isSignedIn ? Icons.check_circle : Icons.account_circle,
+              color: _isSignedIn ? Colors.green : Colors.blue,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isSignedIn ? 'Tài khoản Google' : 'Đăng nhập Google',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                if (_isSignedIn && _userEmail != null)
+                  Text(
+                    _userEmail!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.green[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  )
+                else
+                  Text(
+                    'Để đồng bộ Sheets & Backup',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _isSigningIn
+              ? SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.blue,
+                  ),
+                )
+              : InkWell(
+                  onTap: _handleGoogleSignIn,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isSignedIn ? Colors.grey.withOpacity(0.2) : Colors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _isSignedIn ? 'Đăng xuất' : 'Đăng nhập',
+                      style: TextStyle(
+                        color: _isSignedIn ? (isDark ? Colors.white70 : Colors.black54) : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionLabel(String label, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 4),
@@ -514,7 +662,7 @@ class SideMenu extends StatelessWidget {
     required VoidCallback onTap,
     required bool isDark,
   }) {
-    final bool selected = index >= 0 && index == selectedIndex;
+    final bool selected = index >= 0 && index == widget.selectedIndex;
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
