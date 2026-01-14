@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/overtime_entry.dart';
+import '../theme/app_theme.dart';
 
 class EntryDetailScreen extends StatelessWidget {
   final OvertimeEntry entry;
@@ -11,114 +12,124 @@ class EntryDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
     final dateFormat = DateFormat('EEEE, dd/MM/yyyy', 'vi_VN');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chi tiết tăng ca'),
-      ),
+      appBar: AppBar(title: const Text('Chi tiết tăng ca')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card
-            _buildHeaderCard(context, dateFormat, currencyFormat),
+            _buildHeaderCard(context, dateFormat, currencyFormat, isDark),
             const SizedBox(height: 24),
-
-            // Time Info
-            _buildSectionTitle('Thời gian làm việc'),
+            _buildSectionTitle('Thời gian làm việc', isDark),
             const SizedBox(height: 12),
-            _buildTimeCard(context),
+            _buildTimeCard(context, isDark),
             const SizedBox(height: 24),
-
-            // OT Breakdown
-            _buildSectionTitle('Chi tiết tính lương'),
+            _buildSectionTitle('Chi tiết tính lương', isDark),
             const SizedBox(height: 12),
-            _buildOTBreakdown(context, currencyFormat),
+            _buildOTBreakdown(context, currencyFormat, isDark),
             const SizedBox(height: 24),
-
-            // Summary
-            _buildSummaryCard(context, currencyFormat),
+            _buildSummaryCard(context, currencyFormat, isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderCard(BuildContext context, DateFormat dateFormat, NumberFormat currencyFormat) {
+  Widget _buildHeaderCard(BuildContext context, DateFormat dateFormat, NumberFormat currencyFormat, bool isDark) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: entry.isSunday
-              ? [const Color(0xFFE53935), const Color(0xFFC62828)]
-              : [const Color(0xFF1E88E5), const Color(0xFF0D47A1)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: (entry.isSunday ? const Color(0xFFE53935) : const Color(0xFF1E88E5)).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        gradient: entry.isSunday ? AppGradients.heroDanger : AppGradients.heroBlue,
+        borderRadius: AppRadius.borderXl,
+        boxShadow: entry.isSunday ? AppShadows.heroDangerLight : AppShadows.heroLight,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  entry.isSunday ? 'Chủ nhật (x2.0)' : 'Ngày thường',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+          Positioned(
+            top: -30,
+            right: -30,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.08)),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            dateFormat.format(entry.date),
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          Positioned(
+            bottom: -20,
+            left: -20,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.05)),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            currencyFormat.format(entry.totalPay),
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: AppRadius.borderFull,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(entry.isSunday ? Icons.weekend_rounded : Icons.work_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            entry.isSunday ? 'Chủ nhật (x2.0)' : 'Ngày thường',
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  dateFormat.format(entry.date),
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  currencyFormat.format(entry.totalPay),
+                  style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: -1),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, bool isDark) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+      style: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      ),
     );
   }
 
-  Widget _buildTimeCard(BuildContext context) {
+  Widget _buildTimeCard(BuildContext context, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderLg,
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        boxShadow: isDark ? null : AppShadows.cardLight,
       ),
       child: Row(
         children: [
@@ -127,14 +138,15 @@ class EntryDetailScreen extends StatelessWidget {
               context,
               'Bắt đầu',
               entry.startTime.format(context),
-              Icons.play_circle_outline,
-              Colors.green,
+              Icons.play_circle_outline_rounded,
+              AppColors.success,
+              isDark,
             ),
           ),
           Container(
             width: 1,
-            height: 50,
-            color: Colors.grey.shade200,
+            height: 60,
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           ),
           Expanded(
             child: _buildTimeItem(
@@ -142,7 +154,8 @@ class EntryDetailScreen extends StatelessWidget {
               'Kết thúc',
               entry.endTime.format(context),
               Icons.stop_circle_outlined,
-              Colors.red,
+              AppColors.danger,
+              isDark,
             ),
           ),
         ],
@@ -150,30 +163,39 @@ class EntryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeItem(BuildContext context, String label, String time, IconData icon, Color color) {
+  Widget _buildTimeItem(BuildContext context, String label, String time, IconData icon, Color color, bool isDark) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 8),
-        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(isDark ? 0.2 : 0.1),
+            borderRadius: AppRadius.borderSm,
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(height: 10),
+        Text(label, style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontSize: 12)),
         const SizedBox(height: 4),
-        Text(time, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildOTBreakdown(BuildContext context, NumberFormat currencyFormat) {
+  Widget _buildOTBreakdown(BuildContext context, NumberFormat currencyFormat, bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderLg,
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        boxShadow: isDark ? null : AppShadows.cardLight,
       ),
       child: Column(
         children: [
@@ -184,7 +206,8 @@ class EntryDetailScreen extends StatelessWidget {
               entry.hours15,
               entry.hours15 * entry.hourlyRate * 1.5,
               currencyFormat,
-              Colors.blue,
+              AppColors.primary,
+              isDark,
             ),
           if (entry.hours18 > 0 && !entry.isSunday)
             _buildOTRow(
@@ -193,7 +216,8 @@ class EntryDetailScreen extends StatelessWidget {
               entry.hours18,
               entry.hours18 * entry.hourlyRate * 1.8,
               currencyFormat,
-              Colors.orange,
+              AppColors.accent,
+              isDark,
             ),
           if (entry.isSunday)
             _buildOTRow(
@@ -202,27 +226,28 @@ class EntryDetailScreen extends StatelessWidget {
               entry.hours20,
               entry.hours20 * entry.hourlyRate * 2.0,
               currencyFormat,
-              Colors.red,
+              AppColors.danger,
+              isDark,
             ),
         ],
       ),
     );
   }
 
-  Widget _buildOTRow(String title, String timeRange, double hours, double pay, NumberFormat format, Color color) {
+  Widget _buildOTRow(String title, String timeRange, double hours, double pay, NumberFormat format, Color color, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+        border: Border(bottom: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
       ),
       child: Row(
         children: [
           Container(
-            width: 8,
+            width: 6,
             height: 50,
             decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
+              gradient: LinearGradient(colors: [color, color.withOpacity(0.6)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              borderRadius: AppRadius.borderFull,
             ),
           ),
           const SizedBox(width: 16),
@@ -230,18 +255,35 @@ class EntryDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(timeRange, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(isDark ? 0.15 : 0.1),
+                    borderRadius: AppRadius.borderFull,
+                  ),
+                  child: Text(timeRange, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${hours.toStringAsFixed(1)} giờ', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                '${hours.toStringAsFixed(1)} giờ',
+                style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+              ),
               const SizedBox(height: 4),
-              Text(format.format(pay), style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+              Text(format.format(pay), style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 15)),
             ],
           ),
         ],
@@ -249,28 +291,51 @@ class EntryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, NumberFormat currencyFormat) {
+  Widget _buildSummaryCard(BuildContext context, NumberFormat currencyFormat, bool isDark) {
     final totalHours = entry.isSunday ? entry.hours20 : (entry.hours15 + entry.hours18);
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.success.withOpacity(isDark ? 0.15 : 0.08),
+            AppColors.successDark.withOpacity(isDark ? 0.1 : 0.05),
+          ],
+        ),
+        borderRadius: AppRadius.borderLg,
+        border: Border.all(color: AppColors.success.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          _buildSummaryRow('Tổng số giờ OT', '${totalHours.toStringAsFixed(1)} giờ'),
-          const Divider(height: 24),
-          _buildSummaryRow('Lương cơ bản/giờ', currencyFormat.format(entry.hourlyRate)),
-          const Divider(height: 24),
+          _buildSummaryRow('Tổng số giờ OT', '${totalHours.toStringAsFixed(1)} giờ', isDark),
+          Divider(height: 24, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          _buildSummaryRow('Lương cơ bản/giờ', currencyFormat.format(entry.hourlyRate), isDark),
+          Divider(height: 24, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Tổng thu nhập', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.success.withOpacity(0.2), borderRadius: AppRadius.borderSm),
+                    child: Icon(Icons.account_balance_wallet_rounded, color: AppColors.success, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Tổng thu nhập',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                ],
+              ),
               Text(
                 currencyFormat.format(entry.totalPay),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.success),
               ),
             ],
           ),
@@ -279,12 +344,15 @@ class EntryDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value) {
+  Widget _buildSummaryRow(String label, String value, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: Colors.grey.shade600)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+        ),
       ],
     );
   }

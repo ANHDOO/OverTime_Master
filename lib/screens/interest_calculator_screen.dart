@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_theme.dart';
 
 class InterestCalculatorScreen extends StatefulWidget {
   const InterestCalculatorScreen({super.key});
@@ -30,17 +31,24 @@ class _InterestCalculatorScreenState extends State<InterestCalculatorScreen> {
     final amount = double.tryParse(_amountController.text.replaceAll(',', ''));
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập số tiền nợ lương hợp lệ')),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              const Text('Vui lòng nhập số tiền nợ lương hợp lệ'),
+            ],
+          ),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+        ),
       );
       return;
     }
 
     final now = DateTime.now();
-    
-    // Payment due date is the 20th of the selected month
     final dueDate = DateTime(_selectedMonth.year, _selectedMonth.month, 20);
-    
-    // Interest calculation start date is the 5th
     final interestStartDate = DateTime(_selectedMonth.year, _selectedMonth.month, 5);
 
     setState(() {
@@ -48,15 +56,13 @@ class _InterestCalculatorScreenState extends State<InterestCalculatorScreen> {
       _extraInterest = 0;
       _daysLate = 0;
 
-      // If current date is after the 5th, base interest applies
       if (now.isAfter(interestStartDate)) {
-        _baseInterest = amount * 0.015; // 1.5%
+        _baseInterest = amount * 0.015;
       }
 
-      // If current date is after the 20th, extra daily interest applies
       if (now.isAfter(dueDate)) {
         _daysLate = now.difference(dueDate).inDays;
-        _extraInterest = amount * 0.001 * _daysLate; // 0.1% per day
+        _extraInterest = amount * 0.001 * _daysLate;
       }
 
       _totalInterest = _baseInterest + _extraInterest;
@@ -83,77 +89,79 @@ class _InterestCalculatorScreenState extends State<InterestCalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tính lãi nợ lương'),
-      ),
+      appBar: AppBar(title: const Text('Tính lãi nợ lương')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info Card
-            _buildInfoCard(),
+            _buildInfoCard(isDark),
             const SizedBox(height: 24),
 
-            // Month Selector
-            _buildSectionTitle('Tháng lương bị nợ'),
+            _buildSectionTitle('Tháng lương bị nợ', isDark),
             const SizedBox(height: 12),
-            _buildMonthSelector(),
+            _buildMonthSelector(isDark),
             const SizedBox(height: 24),
 
-            // Amount Input
-            _buildSectionTitle('Số tiền công ty còn nợ (VNĐ)'),
+            _buildSectionTitle('Số tiền công ty còn nợ (VNĐ)', isDark),
             const SizedBox(height: 12),
-            _buildAmountInput(),
-            const SizedBox(height: 32),
+            _buildAmountInput(isDark),
+            const SizedBox(height: 28),
 
-            // Calculate Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _calculateInterest,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 4,
-                ),
-                child: const Text(
-                  'Tính toán lãi suất',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
+            _buildCalculateButton(isDark),
             const SizedBox(height: 24),
 
-            // Results
-            if (_hasCalculated) _buildResults(),
+            if (_hasCalculated) _buildResults(isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.accent.withOpacity(isDark ? 0.15 : 0.1),
+            AppColors.accentDark.withOpacity(isDark ? 0.1 : 0.05),
+          ],
+        ),
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.orange.shade700),
-          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.2),
+              borderRadius: AppRadius.borderSm,
+            ),
+            child: Icon(Icons.info_outline_rounded, color: AppColors.accent, size: 22),
+          ),
+          const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              'Lãi suất: 1.5% từ ngày 5 đến 20, thêm 0.1%/ngày sau ngày 20',
-              style: TextStyle(color: Colors.orange.shade900, fontSize: 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quy định lãi suất nợ lương',
+                  style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '1.5% từ ngày 5 đến 20, thêm 0.1%/ngày sau ngày 20',
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -161,139 +169,229 @@ class _InterestCalculatorScreenState extends State<InterestCalculatorScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, bool isDark) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+        letterSpacing: 0.5,
+      ),
     );
   }
 
-  Widget _buildMonthSelector() {
+  Widget _buildMonthSelector(bool isDark) {
     return GestureDetector(
       onTap: _selectMonth,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: AppRadius.borderMd,
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_month, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
+                borderRadius: AppRadius.borderSm,
+              ),
+              child: Icon(Icons.calendar_month_rounded, color: AppColors.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 'Tháng ${_selectedMonth.month}/${_selectedMonth.year}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                ),
               ),
             ),
-            Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+            Icon(Icons.keyboard_arrow_down_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAmountInput() {
+  Widget _buildAmountInput(bool isDark) {
     return TextField(
       controller: _amountController,
       keyboardType: TextInputType.number,
+      style: TextStyle(
+        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+        fontWeight: FontWeight.w500,
+        fontSize: 16,
+      ),
       decoration: InputDecoration(
-        hintText: 'Ví dụ: 5000000',
+        hintText: 'Ví dụ: 5,000,000',
+        hintStyle: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
         filled: true,
-        fillColor: Colors.grey.shade50,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
+        fillColor: isDark ? AppColors.darkSurfaceVariant.withOpacity(0.5) : AppColors.lightSurfaceVariant,
+        border: OutlineInputBorder(borderRadius: AppRadius.borderMd, borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: AppRadius.borderMd,
+          borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         ),
-        prefixIcon: Icon(Icons.money, color: Theme.of(context).colorScheme.primary),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.borderMd,
+          borderSide: BorderSide(color: AppColors.accent, width: 2),
+        ),
+        prefixIcon: Container(
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withOpacity(isDark ? 0.2 : 0.1),
+            borderRadius: AppRadius.borderSm,
+          ),
+          child: Icon(Icons.payments_rounded, color: AppColors.accent, size: 20),
+        ),
       ),
     );
   }
 
-  Widget _buildResults() {
+  Widget _buildCalculateButton(bool isDark) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: AppGradients.heroOrange,
+        borderRadius: AppRadius.borderMd,
+        boxShadow: AppShadows.heroOrangeLight,
+      ),
+      child: ElevatedButton(
+        onPressed: _calculateInterest,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.calculate_rounded, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
+            const Text(
+              'Tính toán lãi suất',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults(bool isDark) {
     final amount = double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0;
 
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF1E88E5),
-            const Color(0xFF0D47A1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1E88E5).withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        gradient: AppGradients.heroBlue,
+        borderRadius: AppRadius.borderXl,
+        boxShadow: AppShadows.heroLight,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          const Text(
-            'Kết quả tính toán',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          
-          // Base Interest
-          _buildResultRow(
-            'Lãi cơ bản (1.5%)',
-            currencyFormat.format(_baseInterest),
-            'Từ ngày 5 đến ngày 20',
-          ),
-          const Divider(color: Colors.white24, height: 32),
-
-          // Extra Interest
-          _buildResultRow(
-            'Lãi thêm (0.1%/ngày)',
-            currencyFormat.format(_extraInterest),
-            _daysLate > 0 ? 'Quá hạn $_daysLate ngày' : 'Chưa quá ngày 20',
-          ),
-          const Divider(color: Colors.white24, height: 32),
-
-          // Total
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Tổng tiền lãi',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                currencyFormat.format(_totalInterest),
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          // Total amount owed
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
+          Positioned(
+            top: -30,
+            right: -30,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.08)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          Positioned(
+            bottom: -20,
+            left: -20,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.05)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Tổng công ty cần trả:', style: TextStyle(color: Colors.white70)),
-                Text(
-                  currencyFormat.format(amount + _totalInterest),
-                  style: const TextStyle(color: Colors.greenAccent, fontSize: 18, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: AppRadius.borderSm,
+                      ),
+                      child: const Icon(Icons.analytics_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Kết quả tính toán',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: AppRadius.borderMd,
+                  ),
+                  child: Column(
+                    children: [
+                      _buildResultRow('Lãi cơ bản (1.5%)', currencyFormat.format(_baseInterest), 'Từ ngày 5 đến ngày 20'),
+                      Divider(color: Colors.white.withOpacity(0.2), height: 24),
+                      _buildResultRow(
+                        'Lãi thêm (0.1%/ngày)',
+                        currencyFormat.format(_extraInterest),
+                        _daysLate > 0 ? 'Quá hạn $_daysLate ngày' : 'Chưa quá ngày 20',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Tổng tiền lãi', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    Text(
+                      currencyFormat.format(_totalInterest),
+                      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: AppRadius.borderMd,
+                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'TỔNG CÔNG TY CẦN TRẢ',
+                        style: TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        currencyFormat.format(amount + _totalInterest),
+                        style: TextStyle(color: AppColors.successLight, fontSize: 28, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -310,12 +408,19 @@ class _InterestCalculatorScreenState extends State<InterestCalculatorScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-            Text(amount, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            Text(amount, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
         const SizedBox(height: 4),
-        Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: AppRadius.borderFull,
+          ),
+          child: Text(subtitle, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+        ),
       ],
     );
   }

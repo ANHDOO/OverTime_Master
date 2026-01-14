@@ -1,8 +1,8 @@
 {
-  "versionName": "1.3.8",
-  "versionCode": 55,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.3.8/overtime_1.3.8.apk",
-  "changelog": "# Phiên bản 1.3.8 (Build 55)\n**Ngày phát hành:** 13/01/2026\n\n## 🔄 Cập nhật\n- Rebuild và deploy lại với link tải mới\n- Kế thừa tất cả tính năng từ v1.3.7\n",
-  "publishedAt": "2026-01-13T18:02:17.976579Z",
-  "fileSize": "23.4MB"
+  "versionName": "1.4.0",
+  "versionCode": 57,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.4.0/overtime_1.4.0.apk",
+  "changelog": "# Nhật ký thay đổi v1.4.0\n\n### 🎨 Giao diện & Trải nghiệm (UI/UX)\n- **Giao diện sáng mặc định**: Chuyển đổi giao diện mặc định sang chế độ **Sáng** theo yêu cầu của người dùng.\n- **Menu gọn gàng hơn**: Tối ưu hóa khoảng cách giữa các mục trong menu (Side Menu), giúp giao diện thanh thoát và dễ bao quát hơn.\n- **Tự động điền tìm kiếm**: Các màn hình tra cứu (MST, BHXH, Phạt nguội) giờ đây sẽ ghi nhớ thông tin nhập cuối cùng, giúp bạn không phải nhập lại nhiều lần.\n- **Đơn giản hóa Sao lưu**: Hợp nhất giao diện sao lưu, chỉ cần một nút bấm để sao lưu toàn bộ dữ liệu ứng dụng và các khóa Google Sheets.\n\n### 💰 Theo dõi giá vàng\n- **Khôi phục hiển thị SJC**: Đã đưa giá vàng SJC quay trở lại tab \"Giá hiện tại\" để người dùng dễ dàng theo dõi.\n- **Tối ưu hóa biểu đồ**: Vàng SJC sẽ chỉ hiển thị giá và không tham gia vào biểu đồ phân tích đầu tư để tránh làm rối dữ liệu (theo yêu cầu).\n- **Bổ sung dữ liệu thiếu**: Đã cập nhật bổ sung giá vàng ngày **13/01** bị thiếu trong lịch sử.\n- **Hiển thị SJC trong danh mục**: Các khoản đầu tư vàng SJC hiện đã hiển thị trở lại trong danh sách \"Sổ đầu tư\".\n\n### 🛠 Hệ thống & Bảo mật\n- **Tự động sao lưu ngầm**: Ứng dụng sẽ tự động sao lưu dữ liệu lên Google Drive mỗi khi bạn có thay đổi (thêm/sửa/xóa) nếu đã đăng nhập.\n- **Khôi phục toàn diện**: Tính năng khôi phục giờ đây sẽ khôi phục cả cơ sở dữ liệu và các cấu hình Google Sheets cùng lúc.\n- **Cập nhật API**: Loại bỏ hoàn toàn các cảnh báo lỗi thời (deprecated) để đảm bảo ứng dụng chạy mượt mà trên các phiên bản Android mới nhất.\n- Tiếp tục duy trì hệ thống theo dõi giá vàng 24/7 với tần suất 15 phút/lần.\n",
+  "publishedAt": "2026-01-14T13:46:10.826479Z",
+  "fileSize": "23.5MB"
 }

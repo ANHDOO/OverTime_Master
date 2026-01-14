@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/overtime_provider.dart';
 import '../../services/update_service.dart';
+import '../../theme/app_theme.dart';
 
 class UpdateScreen extends StatefulWidget {
   const UpdateScreen({super.key});
@@ -41,19 +42,33 @@ class _UpdateScreenState extends State<UpdateScreen> {
     await _calculateStorage();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã dọn dẹp bộ nhớ thành công')),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              const Text('Đã dọn dẹp bộ nhớ thành công'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       appBar: AppBar(title: const Text('Cập nhật ứng dụng')),
       body: RefreshIndicator(
         onRefresh: () => _updateService.checkForUpdate(),
-        child: AnimatedBuilder(
-          animation: _updateService,
+        color: AppColors.primary,
+        child: ListenableBuilder(
+          listenable: _updateService,
           builder: (context, _) {
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -68,15 +83,15 @@ class _UpdateScreenState extends State<UpdateScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoCard(),
+                    _buildInfoCard(isDark),
                     const SizedBox(height: 20),
-                    _buildStorageSection(),
+                    _buildStorageSection(isDark),
                     const SizedBox(height: 24),
-                    _buildFeaturesSection(),
+                    _buildFeaturesSection(isDark),
                     const SizedBox(height: 24),
-                    _buildStatusSection(),
+                    _buildStatusSection(isDark),
                     const SizedBox(height: 24),
-                    _buildActionButtons(),
+                    _buildActionButtons(isDark),
                   ],
                 ),
               ),
@@ -87,7 +102,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(bool isDark) {
     return FutureBuilder<PackageInfo>(
       future: PackageInfo.fromPlatform(),
       builder: (context, snapshot) {
@@ -97,10 +112,17 @@ class _UpdateScreenState extends State<UpdateScreen> {
             ? DateFormat('HH:mm - dd/MM/yyyy').format(_updateService.lastCheckTime!)
             : 'Chưa kiểm tra';
 
-        return Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.1))),
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(isDark ? 0.15 : 0.08),
+                AppColors.primaryDark.withOpacity(isDark ? 0.1 : 0.05),
+              ],
+            ),
+            borderRadius: AppRadius.borderXl,
+            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -108,9 +130,12 @@ class _UpdateScreenState extends State<UpdateScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity(0.1), shape: BoxShape.circle),
-                      child: Icon(Icons.phonelink_setup, color: Theme.of(context).colorScheme.primary),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: AppGradients.heroBlue,
+                        borderRadius: AppRadius.borderMd,
+                      ),
+                      child: const Icon(Icons.phonelink_setup_rounded, color: Colors.white, size: 24),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -119,23 +144,42 @@ class _UpdateScreenState extends State<UpdateScreen> {
                         children: [
                           Text(
                             'Phiên bản hiện tại',
-                            style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                          const SizedBox(height: 4),
                           Text(
                             'v${info.version} (Build ${info.buildNumber})',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const Divider(height: 32),
+                Divider(height: 32, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Kiểm tra lần cuối:', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                    Text(lastCheck, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                    Text(
+                      'Kiểm tra lần cuối:',
+                      style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontSize: 13),
+                    ),
+                    Text(
+                      lastCheck,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -146,36 +190,54 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
   }
 
-  Widget _buildStorageSection() {
+  Widget _buildStorageSection(bool isDark) {
     final totalSize = _cacheSize + _imagesSize;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Quản lý bộ nhớ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          'Quản lý bộ nhớ',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: AppRadius.borderLg,
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
           ),
           child: Column(
             children: [
-              _buildStorageItem('Bộ nhớ đệm cập nhật', _cacheSize, Icons.system_update_alt),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider()),
-              _buildStorageItem('Ảnh chứng từ giao dịch', _imagesSize, Icons.image_outlined),
+              _buildStorageItem('Bộ nhớ đệm cập nhật', _cacheSize, Icons.system_update_alt_rounded, isDark),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, height: 1),
+              ),
+              _buildStorageItem('Ảnh chứng từ giao dịch', _imagesSize, Icons.image_outlined, isDark),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: totalSize > 0.1 ? _cleanup : null,
-                  icon: const Icon(Icons.cleaning_services_outlined, size: 18),
-                  label: Text(totalSize > 0.1 ? 'Dọn dẹp ngay (${totalSize.toStringAsFixed(1)} MB)' : 'Bộ nhớ đã sạch'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.orange.shade800,
-                    backgroundColor: Colors.orange.shade50.withOpacity(totalSize > 0.1 ? 1 : 0.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: totalSize > 0.1 ? AppGradients.heroOrange : null,
+                    borderRadius: AppRadius.borderMd,
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: totalSize > 0.1 ? _cleanup : null,
+                    icon: const Icon(Icons.cleaning_services_rounded, size: 18),
+                    label: Text(totalSize > 0.1 ? 'Dọn dẹp ngay (${totalSize.toStringAsFixed(1)} MB)' : 'Bộ nhớ đã sạch'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: totalSize > 0.1 ? Colors.transparent : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                      foregroundColor: totalSize > 0.1 ? Colors.white : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+                    ),
                   ),
                 ),
               ),
@@ -186,26 +248,33 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
   }
 
-  Widget _buildFeaturesSection() {
+  Widget _buildFeaturesSection(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Nhật ký phiên bản hiện tại', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          'Nhật ký phiên bản hiện tại',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: AppRadius.borderLg,
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
           ),
           child: _updateService.currentChangelog != null && _updateService.currentChangelog!.isNotEmpty
-              ? _buildChangelogContent(_updateService.currentChangelog!)
-              : const Center(
+              ? _buildChangelogContent(_updateService.currentChangelog!, isDark)
+              : Center(
                   child: Text(
                     'Kéo xuống để kiểm tra cập nhật',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                   ),
                 ),
         ),
@@ -213,8 +282,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
   }
   
-  Widget _buildChangelogContent(String changelog) {
-    // Parse changelog markdown-style content
+  Widget _buildChangelogContent(String changelog, bool isDark) {
     final lines = changelog.split('\n');
     final widgets = <Widget>[];
     
@@ -222,43 +290,40 @@ class _UpdateScreenState extends State<UpdateScreen> {
       if (line.trim().isEmpty) continue;
       
       if (line.startsWith('# ')) {
-        // Main title
         widgets.add(Text(
           line.substring(2),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
         ));
         widgets.add(const SizedBox(height: 8));
       } else if (line.startsWith('## ')) {
-        // Section header
         widgets.add(const SizedBox(height: 8));
         widgets.add(Text(
           line.substring(3),
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          ),
         ));
         widgets.add(const SizedBox(height: 4));
       } else if (line.startsWith('### ')) {
-        // Sub-section with icon
-        final iconMatch = RegExp(r'^### (.+?) (.+)$').firstMatch(line);
-        if (iconMatch != null) {
-          widgets.add(const SizedBox(height: 6));
-          widgets.add(Text(
-            iconMatch.group(0)!.substring(4),
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue.shade700),
-          ));
-          widgets.add(const SizedBox(height: 2));
-        }
+        widgets.add(const SizedBox(height: 6));
+        widgets.add(Text(
+          line.substring(4),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+        ));
+        widgets.add(const SizedBox(height: 2));
       } else if (line.startsWith('- ')) {
-        // Bullet point
         widgets.add(Padding(
           padding: const EdgeInsets.only(left: 8, top: 2),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('• ', style: TextStyle(fontSize: 12)),
+              Text('• ', style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
               Expanded(
                 child: Text(
                   line.substring(2).replaceAll('**', ''),
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                 ),
               ),
             ],
@@ -273,81 +338,100 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
   }
 
-  Widget _buildFeatureItem(String title, String desc, IconData icon, Color color) {
+  Widget _buildStorageItem(String label, double size, IconData icon, bool isDark) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, size: 20, color: color),
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(isDark ? 0.2 : 0.1),
+            borderRadius: AppRadius.borderSm,
+          ),
+          child: Icon(icon, size: 18, color: AppColors.info),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text(desc, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            ],
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+            borderRadius: AppRadius.borderFull,
+          ),
+          child: Text(
+            '${size.toStringAsFixed(1)} MB',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStorageItem(String label, double size, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
-        Text(
-          '${size.toStringAsFixed(1)} MB',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatusSection() {
+  Widget _buildStatusSection(bool isDark) {
     if (_updateService.status == DownloadStatus.checking) {
-      return const Center(
+      return Center(
         child: Column(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Đang kiểm tra cập nhật...'),
+            CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Đang kiểm tra cập nhật...',
+              style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+            ),
           ],
         ),
       );
     }
 
     if (_updateService.status == DownloadStatus.downloading) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Đang tải bản cập nhật...', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: _updateService.progress,
-              minHeight: 10,
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(isDark ? 0.15 : 0.08),
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.download_rounded, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Đang tải bản cập nhật...',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tiến độ: ${(_updateService.progress * 100).toStringAsFixed(1)}%',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-          if (_updateService.updateInfo != null) ...[
             const SizedBox(height: 16),
-            Text('Dung lượng: ${_updateService.updateInfo!.fileSize}', 
-                 style: const TextStyle(fontSize: 12)),
-          ]
-        ],
+            ClipRRect(
+              borderRadius: AppRadius.borderFull,
+              child: LinearProgressIndicator(
+                value: _updateService.progress,
+                minHeight: 8,
+                backgroundColor: AppColors.primary.withOpacity(0.2),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Tiến độ: ${(_updateService.progress * 100).toStringAsFixed(1)}%',
+              style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13),
+            ),
+          ],
+        ),
       );
     }
 
@@ -355,18 +439,24 @@ class _UpdateScreenState extends State<UpdateScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green.withOpacity(0.3)),
+          gradient: LinearGradient(
+            colors: [AppColors.success.withOpacity(isDark ? 0.15 : 0.1), AppColors.successDark.withOpacity(isDark ? 0.1 : 0.05)],
+          ),
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: AppColors.success.withOpacity(0.3)),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 12),
-            Expanded(
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppColors.success.withOpacity(0.2), borderRadius: AppRadius.borderSm),
+              child: Icon(Icons.check_circle_rounded, color: AppColors.success),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
               child: Text(
                 'Bản cập nhật đã sẵn sàng để cài đặt!',
-                style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -375,9 +465,25 @@ class _UpdateScreenState extends State<UpdateScreen> {
     }
 
     if (_updateService.status == DownloadStatus.error) {
-      return Text(
-        'Lỗi: ${_updateService.error}',
-        style: const TextStyle(color: Colors.red),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.danger.withOpacity(isDark ? 0.15 : 0.1),
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_rounded, color: AppColors.danger),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Lỗi: ${_updateService.error}',
+                style: TextStyle(color: AppColors.danger, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -387,36 +493,65 @@ class _UpdateScreenState extends State<UpdateScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.new_releases, color: Colors.blue),
-              const SizedBox(width: 8),
-              Text(
-                'Bản cập nhật mới: ${_updateService.updateInfo!.versionName}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: AppGradients.heroBlue,
+                  borderRadius: AppRadius.borderSm,
+                ),
+                child: const Icon(Icons.new_releases_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bản cập nhật mới',
+                    style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                  ),
+                  Text(
+                    _updateService.updateInfo!.versionName,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.withOpacity(0.1)),
+              color: AppColors.primary.withOpacity(isDark ? 0.1 : 0.05),
+              borderRadius: AppRadius.borderLg,
+              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Nhật ký thay đổi:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(
+                  'Nhật ký thay đổi:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   _updateService.newChangelog ?? _updateService.updateInfo!.changelog,
-                  style: const TextStyle(fontSize: 14, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  ),
                 ),
                 if (_updateService.updateInfo!.fileSize.isNotEmpty) ...[
-                  const Divider(height: 24),
-                  Text('Dung lượng tải về: ${_updateService.updateInfo!.fileSize}', 
-                       style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic)),
+                  Divider(height: 24, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                  Text(
+                    'Dung lượng tải về: ${_updateService.updateInfo!.fileSize}',
+                    style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontStyle: FontStyle.italic),
+                  ),
                 ]
               ],
             ),
@@ -425,60 +560,86 @@ class _UpdateScreenState extends State<UpdateScreen> {
       );
     }
 
-    return const Center(
-      child: Text('Ứng dụng đã ở phiên bản mới nhất'),
+    return Center(
+      child: Column(
+        children: [
+          Icon(Icons.check_circle_outline_rounded, size: 48, color: AppColors.success.withOpacity(0.5)),
+          const SizedBox(height: 12),
+          Text(
+            'Ứng dụng đã ở phiên bản mới nhất',
+            style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(bool isDark) {
     if (_updateService.status == DownloadStatus.downloading) {
       return const SizedBox.shrink();
     }
 
     if (_updateService.status == DownloadStatus.readyToInstall) {
-      return SizedBox(
+      return Container(
         width: double.infinity,
         height: 50,
+        decoration: BoxDecoration(
+          gradient: AppGradients.heroGreen,
+          borderRadius: AppRadius.borderMd,
+          boxShadow: AppShadows.heroGreenLight,
+        ),
         child: ElevatedButton.icon(
           onPressed: () => _updateService.installUpdate(),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
           ),
-          icon: const Icon(Icons.install_mobile),
-          label: const Text('Cài đặt ngay bây giờ', style: TextStyle(fontSize: 16)),
+          icon: const Icon(Icons.install_mobile_rounded, color: Colors.white),
+          label: const Text('Cài đặt ngay bây giờ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
         ),
       );
     }
 
     if (_updateService.hasUpdate) {
-      return SizedBox(
+      return Container(
         width: double.infinity,
         height: 50,
+        decoration: BoxDecoration(
+          gradient: AppGradients.heroBlue,
+          borderRadius: AppRadius.borderMd,
+          boxShadow: AppShadows.heroLight,
+        ),
         child: ElevatedButton.icon(
           onPressed: () => _updateService.downloadInBackground(),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
           ),
-          icon: const Icon(Icons.download),
-          label: const Text('Tải về bản cập nhật', style: TextStyle(fontSize: 16)),
+          icon: const Icon(Icons.download_rounded, color: Colors.white),
+          label: const Text('Tải về bản cập nhật', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
         ),
       );
     }
 
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 50,
-      child: OutlinedButton.icon(
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+      ),
+      child: ElevatedButton.icon(
         onPressed: () => _updateService.checkForUpdate(),
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.primary,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
         ),
-        icon: const Icon(Icons.refresh),
-        label: const Text('Kiểm tra cập nhật', style: TextStyle(fontSize: 16)),
+        icon: const Icon(Icons.refresh_rounded),
+        label: const Text('Kiểm tra cập nhật', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
       ),
     );
   }

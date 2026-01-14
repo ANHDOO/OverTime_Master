@@ -8,6 +8,7 @@ import 'package:path/path.dart' as path;
 import '../providers/overtime_provider.dart';
 import '../models/cash_transaction.dart';
 import '../widgets/smart_money_input.dart';
+import '../theme/app_theme.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   final CashTransaction transaction;
@@ -93,22 +94,43 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   void _showImageOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => SafeArea(
-        child: Wrap(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                borderRadius: AppRadius.borderFull,
+              ),
+            ),
             ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Chụp ảnh'),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: AppRadius.borderMd),
+                child: Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+              ),
+              title: Text('Chụp ảnh', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _takePicture();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Chọn từ thư viện'),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppColors.info.withOpacity(0.1), borderRadius: AppRadius.borderMd),
+                child: Icon(Icons.photo_library_rounded, color: AppColors.info),
+              ),
+              title: Text('Chọn từ thư viện', style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 _pickFromGallery();
@@ -116,13 +138,18 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             ),
             if (_imagePath != null)
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Xóa ảnh', style: TextStyle(color: Colors.red)),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.danger.withOpacity(0.1), borderRadius: AppRadius.borderMd),
+                  child: Icon(Icons.delete_rounded, color: AppColors.danger),
+                ),
+                title: Text('Xóa ảnh', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger)),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() => _imagePath = null);
                 },
               ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -130,18 +157,32 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _saveTransaction() async {
-    // Remove both commas and dots before parsing
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final cleanAmount = _amountController.text.replaceAll(',', '').replaceAll('.', '');
     final amount = double.tryParse(cleanAmount);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')),
+        SnackBar(
+          content: Row(
+            children: [const Icon(Icons.error_outline_rounded, color: Colors.white), const SizedBox(width: 12), const Text('Vui lòng nhập số tiền hợp lệ')],
+          ),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+        ),
       );
       return;
     }
     if (_descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập nội dung')),
+        SnackBar(
+          content: Row(
+            children: [const Icon(Icons.error_outline_rounded, color: Colors.white), const SizedBox(width: 12), const Text('Vui lòng nhập nội dung')],
+          ),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+        ),
       );
       return;
     }
@@ -166,30 +207,17 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<OvertimeProvider>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Get unique projects from existing transactions
-    final existingProjects = provider.cashTransactions
-        .map((t) => t.project)
-        .toSet()
-        .toList()
-      ..sort();
-    if (!existingProjects.contains('Mặc định')) {
-      existingProjects.insert(0, 'Mặc định');
-    }
-    
-    // Ensure selected project is in the list to avoid DropdownButton error
-    if (!existingProjects.contains(_selectedProject)) {
-      existingProjects.add(_selectedProject);
-    }
+    final existingProjects = provider.cashTransactions.map((t) => t.project).toSet().toList()..sort();
+    if (!existingProjects.contains('Mặc định')) existingProjects.insert(0, 'Mặc định');
+    if (!existingProjects.contains(_selectedProject)) existingProjects.add(_selectedProject);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chỉnh sửa giao dịch'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () => _showDeleteDialog(),
-          ),
+          IconButton(icon: Icon(Icons.delete_rounded, color: AppColors.danger), onPressed: () => _showDeleteDialog(isDark)),
         ],
       ),
       body: SingleChildScrollView(
@@ -198,281 +226,356 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Project Selection
-            _buildSectionTitle('Dự án / Quỹ'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButton<String>(
-                value: existingProjects.contains(_selectedProject) ? _selectedProject : 'Mặc định',
-                isExpanded: true,
-                underline: const SizedBox(),
-                items: [
-                  ...existingProjects.map((p) => DropdownMenuItem(value: p, child: Text(p))),
-                  const DropdownMenuItem(
-                    value: '__new__',
-                    child: Row(
-                      children: [
-                        Icon(Icons.add, size: 20, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Thêm dự án mới...', style: TextStyle(color: Colors.blue)),
-                      ],
-                    ),
-                  ),
-                ],
-                onChanged: (value) async {
-                  if (value == '__new__') {
-                    final newProject = await _showAddProjectDialog();
-                    if (newProject != null && newProject.isNotEmpty) {
-                      setState(() => _selectedProject = newProject);
-                    }
-                  } else if (value != null) {
-                    setState(() => _selectedProject = value);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
+            _buildSectionTitle('Dự án / Quỹ', isDark),
+            const SizedBox(height: 10),
+            _buildProjectSelector(existingProjects, isDark),
+            const SizedBox(height: 24),
 
             // Transaction Type
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildTypeButton('Thu vào', Icons.arrow_downward, Colors.green, TransactionType.income),
-                  ),
-                  Expanded(
-                    child: _buildTypeButton('Chi ra', Icons.arrow_upward, Colors.red, TransactionType.expense),
-                  ),
-                ],
-              ),
-            ),
+            _buildTypeToggle(isDark),
             const SizedBox(height: 24),
 
             // Amount
-            _buildSectionTitle('Số tiền'),
-            const SizedBox(height: 8),
+            _buildSectionTitle('Số tiền', isDark),
+            const SizedBox(height: 10),
             SmartMoneyInput(
               controller: _amountController,
-              textColor: _type == TransactionType.income ? Colors.green : Colors.red,
+              textColor: _type == TransactionType.income ? AppColors.success : AppColors.danger,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // Date
-            _buildSectionTitle('Ngày giao dịch'),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _selectDate,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 12),
-                    Text(
-                      DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(_selectedDate),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+            _buildSectionTitle('Ngày giao dịch', isDark),
+            const SizedBox(height: 10),
+            _buildDatePicker(isDark),
+            const SizedBox(height: 24),
 
             // Description
-            _buildSectionTitle('Nội dung'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 2,
-              decoration: InputDecoration(
-                hintText: 'Mô tả giao dịch',
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 20),
+            _buildSectionTitle('Nội dung', isDark),
+            const SizedBox(height: 10),
+            _buildTextField(_descriptionController, 'Mô tả giao dịch', isDark, maxLines: 2),
+            const SizedBox(height: 24),
 
             // Payment Type
-            _buildSectionTitle('Hình thức thanh toán'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: CheckboxListTile(
-                    title: const Text('Hoá đơn giấy', style: TextStyle(fontSize: 14)),
-                    value: _paymentType == 'Hoá đơn giấy',
-                    onChanged: (val) {
-                      if (val == true) setState(() => _paymentType = 'Hoá đơn giấy');
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                ),
-                Expanded(
-                  child: CheckboxListTile(
-                    title: const Text('Chụp hình CK', style: TextStyle(fontSize: 14)),
-                    value: _paymentType == 'Chụp hình chuyển khoản',
-                    onChanged: (val) {
-                      if (val == true) setState(() => _paymentType = 'Chụp hình chuyển khoản');
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            _buildSectionTitle('Hình thức thanh toán', isDark),
+            const SizedBox(height: 10),
+            _buildPaymentTypeSelector(isDark),
+            const SizedBox(height: 24),
 
             // Note
-            _buildSectionTitle('Ghi chú thêm (tùy chọn)'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _noteController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Ghi chú thêm về giao dịch...',
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 20),
+            _buildSectionTitle('Ghi chú thêm (tùy chọn)', isDark),
+            const SizedBox(height: 10),
+            _buildTextField(_noteController, 'Ghi chú thêm về giao dịch...', isDark, maxLines: 3),
+            const SizedBox(height: 24),
 
             // Image
-            _buildSectionTitle('Hình ảnh chứng từ'),
-            const SizedBox(height: 8),
-            if (_imagePath != null) ...[
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(File(_imagePath!), height: 200, width: double.infinity, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _imagePath = null),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, color: Colors.white, size: 20),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextButton.icon(onPressed: _showImageOptions, icon: const Icon(Icons.edit), label: const Text('Thay đổi ảnh')),
-            ] else
-              InkWell(
-                onTap: _showImageOptions,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_a_photo, size: 32, color: Colors.grey.shade400),
-                      const SizedBox(height: 8),
-                      Text('Thêm ảnh', style: TextStyle(color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 40),
+            _buildSectionTitle('Hình ảnh chứng từ', isDark),
+            const SizedBox(height: 10),
+            _buildImageSection(isDark),
+            const SizedBox(height: 32),
 
             // Save Button
-            ElevatedButton(
-              onPressed: _saveTransaction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text('Lưu thay đổi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
+            _buildSaveButton(isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTypeButton(String label, IconData icon, Color color, TransactionType type) {
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildProjectSelector(List<String> projects, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: DropdownButton<String>(
+        value: projects.contains(_selectedProject) ? _selectedProject : 'Mặc định',
+        isExpanded: true,
+        underline: const SizedBox(),
+        icon: Icon(Icons.keyboard_arrow_down_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+        dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        items: [
+          ...projects.map((p) => DropdownMenuItem(
+            value: p,
+            child: Text(p, style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+          )),
+          DropdownMenuItem(
+            value: '__new__',
+            child: Row(
+              children: [
+                Icon(Icons.add_rounded, size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text('Thêm dự án mới...', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+        onChanged: (value) async {
+          if (value == '__new__') {
+            final newProject = await _showAddProjectDialog(isDark);
+            if (newProject != null && newProject.isNotEmpty) setState(() => _selectedProject = newProject);
+          } else if (value != null) {
+            setState(() => _selectedProject = value);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildTypeToggle(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        borderRadius: AppRadius.borderMd,
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildTypeButton('Thu vào', Icons.south_rounded, AppColors.success, TransactionType.income, isDark)),
+          const SizedBox(width: 4),
+          Expanded(child: _buildTypeButton('Chi ra', Icons.north_rounded, AppColors.danger, TransactionType.expense, isDark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeButton(String label, IconData icon, Color color, TransactionType type, bool isDark) {
     final isSelected = _type == type;
     return GestureDetector(
       onTap: () => setState(() => _type = type),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(color: isSelected ? color : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          gradient: isSelected ? LinearGradient(colors: [color, color.withOpacity(0.8)]) : null,
+          color: isSelected ? null : Colors.transparent,
+          borderRadius: AppRadius.borderSm,
+          boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : null,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isSelected ? Colors.white : Colors.grey, size: 20),
+            Icon(icon, color: isSelected ? Colors.white : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted), size: 20),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.grey.shade600, fontWeight: FontWeight.bold)),
+            Text(label, style: TextStyle(color: isSelected ? Colors.white : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted), fontWeight: FontWeight.w700)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+  Widget _buildDatePicker(bool isDark) {
+    return GestureDetector(
+      onTap: _selectDate,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: AppRadius.borderMd,
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: AppColors.primary.withOpacity(isDark ? 0.2 : 0.1), borderRadius: AppRadius.borderSm),
+              child: Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(_selectedDate),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<String?> _showAddProjectDialog() async {
+  Widget _buildTextField(TextEditingController controller, String hint, bool isDark, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+        filled: true,
+        fillColor: isDark ? AppColors.darkSurfaceVariant.withOpacity(0.5) : AppColors.lightSurfaceVariant,
+        border: OutlineInputBorder(borderRadius: AppRadius.borderMd, borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: AppRadius.borderMd, borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+        focusedBorder: OutlineInputBorder(borderRadius: AppRadius.borderMd, borderSide: BorderSide(color: AppColors.primary, width: 2)),
+      ),
+    );
+  }
+
+  Widget _buildPaymentTypeSelector(bool isDark) {
+    return Row(
+      children: [
+        Expanded(child: _buildPaymentOption('Hoá đơn giấy', Icons.receipt_long_rounded, 'Hoá đơn giấy', isDark)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildPaymentOption('Chụp CK', Icons.camera_alt_rounded, 'Chụp hình chuyển khoản', isDark)),
+      ],
+    );
+  }
+
+  Widget _buildPaymentOption(String label, IconData icon, String value, bool isDark) {
+    final isSelected = _paymentType == value;
+    return GestureDetector(
+      onTap: () => setState(() => _paymentType = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withOpacity(isDark ? 0.2 : 0.1) : (isDark ? AppColors.darkCard : AppColors.lightCard),
+          borderRadius: AppRadius.borderMd,
+          border: Border.all(color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: isSelected ? AppColors.primary : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: isSelected ? AppColors.primary : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSection(bool isDark) {
+    if (_imagePath != null) {
+      return Column(
+        children: [
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: AppRadius.borderLg,
+                child: Image.file(File(_imagePath!), height: 200, width: double.infinity, fit: BoxFit.cover),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () => setState(() => _imagePath = null),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _showImageOptions,
+            icon: Icon(Icons.edit_rounded, color: AppColors.primary),
+            label: Text('Thay đổi ảnh', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      );
+    }
+    return GestureDetector(
+      onTap: _showImageOptions,
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, style: BorderStyle.solid),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_a_photo_rounded, size: 32, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+            const SizedBox(height: 8),
+            Text('Thêm ảnh', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(gradient: AppGradients.heroBlue, borderRadius: AppRadius.borderMd, boxShadow: AppShadows.heroLight),
+      child: ElevatedButton(
+        onPressed: _saveTransaction,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.save_rounded, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
+            const Text('Lưu thay đổi', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showAddProjectDialog(bool isDark) async {
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Thêm dự án mới'),
+        backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderXl),
+        title: Text('Thêm dự án mới', style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'Tên dự án...'),
           autofocus: true,
+          style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+          decoration: InputDecoration(
+            hintText: 'Tên dự án...',
+            hintStyle: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+            border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Thêm'),
+            child: Text('Thêm', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  void _showDeleteDialog() {
+  void _showDeleteDialog(bool isDark) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa giao dịch?'),
-        content: const Text('Bạn có chắc chắn muốn xóa giao dịch này không?'),
+        backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderXl),
+        title: Text('Xóa giao dịch?', style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+        content: Text('Bạn có chắc chắn muốn xóa giao dịch này không?', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
           TextButton(
             onPressed: () {
               final provider = Provider.of<OvertimeProvider>(context, listen: false);
@@ -480,7 +583,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+            child: Text('Xóa', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

@@ -209,6 +209,7 @@ class OvertimeProvider with ChangeNotifier {
 
     await _recalculateAllEntries();
     notifyListeners();
+    _triggerAutoBackup();
   }
 
   Future<void> _recalculateAllEntries() async {
@@ -264,17 +265,20 @@ class OvertimeProvider with ChangeNotifier {
 
     await _storageService.insertEntry(entry);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   // Add an existing entry object (useful for Undo)
   Future<void> addEntryObject(OvertimeEntry entry) async {
     await _storageService.insertEntry(entry);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   Future<void> deleteEntry(int id) async {
     await _storageService.deleteEntry(id);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   /// Restore a previously deleted entry (for undo functionality)
@@ -295,11 +299,13 @@ class OvertimeProvider with ChangeNotifier {
     );
     await _storageService.insertDebtEntry(entry);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   Future<void> deleteDebtEntry(int id) async {
     await _storageService.deleteDebtEntry(id);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   Future<void> toggleDebtPaid(DebtEntry entry) async {
@@ -310,11 +316,13 @@ class OvertimeProvider with ChangeNotifier {
     );
     await _storageService.updateDebtEntry(updatedEntry);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   Future<void> updateDebtEntry(DebtEntry entry) async {
     await _storageService.updateDebtEntry(entry);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   // Cash Transaction methods
@@ -343,6 +351,7 @@ class OvertimeProvider with ChangeNotifier {
     
     // Tự động sync lên Google Sheets
     await _syncProjectToSheets(project);
+    _triggerAutoBackup();
   }
 
   Future<void> deleteCashTransaction(int id) async {
@@ -370,6 +379,7 @@ class OvertimeProvider with ChangeNotifier {
     
     // Sync lại sau khi xóa
     await _syncProjectToSheets(project);
+    _triggerAutoBackup();
   }
 
   /// Tính dung lượng ảnh chứng từ (trong documents)
@@ -424,6 +434,7 @@ class OvertimeProvider with ChangeNotifier {
     if (transaction.project != oldProject) {
       await _syncProjectToSheets(transaction.project);
     }
+    _triggerAutoBackup();
   }
   
   /// Tính tổng income và expense theo project
@@ -580,15 +591,34 @@ class OvertimeProvider with ChangeNotifier {
   Future<void> addCitizenProfile(CitizenProfile profile) async {
     await _storageService.insertCitizenProfile(profile);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   Future<void> updateCitizenProfile(CitizenProfile profile) async {
     await _storageService.updateCitizenProfile(profile);
     await fetchEntries();
+    _triggerAutoBackup();
   }
 
   Future<void> deleteCitizenProfile(int id) async {
     await _storageService.deleteCitizenProfile(id);
     await fetchEntries();
+    _triggerAutoBackup();
+  }
+
+  /// Tự động sao lưu dữ liệu lên Google Drive nếu đã đăng nhập
+  Future<void> _triggerAutoBackup() async {
+    try {
+      final backupService = BackupService();
+      final signedIn = await backupService.signInSilently();
+      if (signedIn) {
+        debugPrint('☁️ Auto-backup triggered...');
+        await backupService.backupDatabase();
+        await backupService.backupSheetsKeys();
+        debugPrint('✅ Auto-backup completed');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Auto-backup failed: $e');
+    }
   }
 }

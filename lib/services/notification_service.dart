@@ -4,7 +4,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'background_notification_service.dart';
+import 'background_service.dart' as bg;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -25,7 +25,8 @@ class NotificationService {
     tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
 
     // Initialize background notification service
-    await BackgroundNotificationService.initialize();
+    // Initialize background gold price monitoring
+    await bg.initializeBackgroundService();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/launcher_icon');
@@ -220,7 +221,7 @@ class NotificationService {
     await showTestNotification();
 
     // Test background service one-time reminder
-    await BackgroundNotificationService.scheduleOneTimeReminder(
+    await bg.scheduleOneTimeReminder(
       const Duration(seconds: 10),
       'Test Background Reminder',
       'Thông báo từ Background Service sau 10 giây!',
@@ -231,7 +232,7 @@ class NotificationService {
   
   Future<void> cancelAll() async {
     await flutterLocalNotificationsPlugin.cancelAll();
-    await BackgroundNotificationService.cancelAll();
+    await bg.cancelAllBackgroundTasks();
   }
 
 }

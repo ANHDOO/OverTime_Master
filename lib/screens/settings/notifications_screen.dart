@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/custom_time_picker.dart';
+import '../../theme/app_theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -40,14 +41,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await service.scheduleDailyNotification();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã bật nhắc nhở lúc $_selectedHour:${_selectedMinute.toString().padLeft(2, '0')} mỗi ngày 💪')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.notifications_active_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Đã bật nhắc nhở lúc $_selectedHour:${_selectedMinute.toString().padLeft(2, '0')} 💪'),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+          ),
         );
       }
     } else {
       await NotificationService().cancelAll();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã tắt nhắc nhở hằng ngày')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.notifications_off_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                const Text('Đã tắt nhắc nhở hằng ngày'),
+              ],
+            ),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+          ),
         );
       }
     }
@@ -74,7 +97,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         await service.scheduleDailyNotification();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Đã cập nhật giờ nhắc nhở: ${picked.hour}:${picked.minute.toString().padLeft(2, '0')} 🕐')),
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Text('Đã cập nhật: ${picked.hour}:${picked.minute.toString().padLeft(2, '0')} 🕐'),
+                ],
+              ),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+            ),
           );
         }
       }
@@ -86,9 +120,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await service.scheduleDailyNotification(testMode: true);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã đặt lịch nhắc nhở sau 10 giây để kiểm tra 🚀'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.rocket_launch_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              const Text('Nhắc nhở sẽ xuất hiện sau 10 giây 🚀'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
         ),
       );
     }
@@ -103,207 +145,387 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final diff = next.difference(now);
     final hours = diff.inHours;
     final minutes = diff.inMinutes % 60;
-    if (hours > 0) {
-      return 'Còn $hours giờ $minutes phút nữa';
-    }
+    if (hours > 0) return 'Còn $hours giờ $minutes phút nữa';
     return 'Còn $minutes phút nữa';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nhắc nhở'),
-        centerTitle: true,
+        elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Hero Section
+          _buildHeroSection(isDark),
+          const SizedBox(height: 24),
+
+          // Settings Group
+          _buildSectionHeader('Cài đặt nhắc nhở', isDark),
+          const SizedBox(height: 12),
+          
           // Main toggle
-          Card(
-            child: SwitchListTile(
-              title: const Text(
-                'Nhắc nhở hằng ngày',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(_isEnabled ? 'Đang bật' : 'Đã tắt'),
-              secondary: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _isEnabled ? theme.colorScheme.primary.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.notifications_active,
-                  color: _isEnabled ? theme.colorScheme.primary : Colors.grey,
-                ),
-              ),
-              value: _isEnabled,
-              onChanged: _toggleNotification,
+          _buildMainToggle(isDark),
+          const SizedBox(height: 12),
+          
+          if (_isEnabled) ...[
+            _buildTimePicker(isDark),
+            const SizedBox(height: 24),
+            
+            _buildSectionHeader('Xem trước', isDark),
+            const SizedBox(height: 12),
+            _buildPreviewCard(isDark),
+            const SizedBox(height: 20),
+            
+            _buildTestButton(isDark),
+            const SizedBox(height: 24),
+            
+            _buildWarningCard(isDark),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroSection(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderXl,
+        boxShadow: isDark ? null : AppShadows.cardLight,
+        border: isDark ? Border.all(color: AppColors.darkBorder) : null,
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: _isEnabled ? AppGradients.heroBlue : null,
+              color: _isEnabled ? null : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+              shape: BoxShape.circle,
+              boxShadow: _isEnabled ? AppShadows.heroLight : null,
+            ),
+            child: Icon(
+              _isEnabled ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+              size: 36,
+              color: _isEnabled ? Colors.white : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
             ),
           ),
-          
-          const SizedBox(height: 16),
-          
-          // Time picker
-          if (_isEnabled) ...[
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.access_time),
-                title: const Text('Giờ nhắc nhở'),
-                subtitle: Text(_getTimeUntilNext()),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$_selectedHour:${_selectedMinute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                onTap: _pickTime,
+          const SizedBox(height: 20),
+          Text(
+            _isEnabled ? 'Nhắc nhở đang hoạt động' : 'Nhắc nhở đang tắt',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              _isEnabled 
+                  ? 'Bạn sẽ nhận được thông báo ghi chép vào lúc $_selectedHour:${_selectedMinute.toString().padLeft(2, '0')}'
+                  : 'Hãy bật nhắc nhở để không bỏ lỡ việc ghi chép chi tiêu hằng ngày',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
             ),
-            
-            const SizedBox(height: 24),
-            
-            // Preview
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainToggle(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderLg,
+        boxShadow: isDark ? null : AppShadows.cardLight,
+        border: Border.all(
+          color: _isEnabled ? AppColors.primary.withValues(alpha: 0.3) : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
+                color: _isEnabled ? AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                borderRadius: AppRadius.borderMd,
               ),
+              child: Icon(
+                Icons.notifications_active_rounded,
+                color: _isEnabled ? AppColors.primary : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.preview, color: theme.colorScheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Xem trước thông báo',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.work, color: Colors.white, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Anh Đô ơi! 💼',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                'Hôm nay làm OT không? Nhớ ghi lại chi tiêu nha! 📝',
-                                style: TextStyle(fontSize: 13, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Test button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _scheduleTestNotification,
-                icon: const Icon(Icons.timer_outlined),
-                label: const Text('Thử nghiệm nhắc nhở (sau 10s)'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: theme.colorScheme.primary),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Xiaomi warning
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.warning_amber, color: Colors.orange.shade700),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Lưu ý cho Xiaomi/MIUI',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    'Để thông báo hoạt động đúng, vui lòng:\n'
-                    '• Vào Cài đặt > Ứng dụng > OverTime\n'
-                    '• Tắt "Tiết kiệm pin" cho app\n'
-                    '• Bật "Tự khởi động"',
+                    'Nhắc nhở hằng ngày',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _isEnabled ? 'Đang bật' : 'Đã tắt',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.orange.shade700,
+                      color: _isEnabled ? AppColors.success : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                     ),
                   ),
                 ],
+              ),
+            ),
+            Switch(
+              value: _isEnabled,
+              onChanged: _toggleNotification,
+              activeColor: AppColors.primary,
+              activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimePicker(bool isDark) {
+    return GestureDetector(
+      onTap: _pickTime,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+          borderRadius: AppRadius.borderLg,
+          boxShadow: isDark ? null : AppShadows.cardLight,
+          border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
+                borderRadius: AppRadius.borderMd,
+              ),
+              child: Icon(Icons.schedule_rounded, color: AppColors.primary, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Giờ nhắc nhở',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _getTimeUntilNext(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: AppGradients.heroBlue,
+                borderRadius: AppRadius.borderMd,
+                boxShadow: AppShadows.heroLight,
+              ),
+              child: Text(
+                '$_selectedHour:${_selectedMinute.toString().padLeft(2, '0')}',
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderLg,
+        boxShadow: isDark ? null : AppShadows.cardLight,
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: AppRadius.borderMd,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: AppGradients.heroBlue,
+                    borderRadius: AppRadius.borderSm,
+                    boxShadow: AppShadows.heroLight,
+                  ),
+                  child: const Icon(Icons.work_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Anh Đô ơi! 💼',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Hôm nay làm OT không? Nhớ ghi lại chi tiêu nha! 📝',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTestButton(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: AppGradients.heroBlue,
+        borderRadius: AppRadius.borderMd,
+        boxShadow: AppShadows.heroLight,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _scheduleTestNotification,
+          borderRadius: AppRadius.borderMd,
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 12),
+                const Text(
+                  'Thử nghiệm nhắc nhở (sau 10s)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWarningCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.warning.withValues(alpha: isDark ? 0.15 : 0.08),
+            AppColors.warningDark.withValues(alpha: isDark ? 0.1 : 0.05),
+          ],
+        ),
+        borderRadius: AppRadius.borderLg,
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.2),
+                  borderRadius: AppRadius.borderSm,
+                ),
+                child: Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Lưu ý cho Xiaomi/MIUI',
+                style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.warning, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Để thông báo hoạt động đúng, vui lòng:\n'
+            '• Vào Cài đặt > Ứng dụng > OverTime\n'
+            '• Tắt "Tiết kiệm pin" cho app\n'
+            '• Bật "Tự khởi động"',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            ),
+          ),
         ],
       ),
     );

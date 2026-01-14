@@ -103,6 +103,13 @@ class AuthService {
     return savedPin == pin;
   }
 
+  // Get saved PIN length
+  Future<int> getPinLength() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPin = prefs.getString(_keyPin);
+    return savedPin?.length ?? 4; // Default to 4 if not set
+  }
+
   // Remove PIN
   Future<void> removePin() async {
     final prefs = await SharedPreferences.getInstance();
