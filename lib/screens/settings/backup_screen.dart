@@ -68,38 +68,7 @@ class _BackupScreenState extends State<BackupScreen> {
     }
   }
 
-  Future<void> _signIn() async {
-    setState(() => _isLoading = true);
-    try {
-      final success = await _backupService.signIn();
-      if (success) {
-        _isSignedIn = true;
-        await _loadBackupData();
-      } else {
-        _showError('Đăng nhập Google thất bại');
-      }
-    } catch (e) {
-      _showError('Lỗi đăng nhập: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
 
-  Future<void> _signOut() async {
-    setState(() => _isLoading = true);
-    try {
-      await _backupService.signOut();
-      _isSignedIn = false;
-      _backupList.clear();
-      _lastBackupInfo = null;
-      _lastRestoreInfo = null;
-      setState(() {});
-    } catch (e) {
-      _showError('Lỗi đăng xuất: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
 
   Future<void> _backupDatabase() async {
     setState(() => _isLoading = true);

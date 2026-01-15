@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'dart:typed_data';
 import 'package:google_sign_in/google_sign_in.dart';
 
 /// Service để đồng bộ dữ liệu Quỹ Phòng với Google Sheets
@@ -65,50 +64,6 @@ class GoogleSheetsService {
     debugPrint('[GoogleSheets] Custom Spreadsheet ID saved: $_spreadsheetId');
   }
 
-  /// Tạo spreadsheet mới trong Drive của user
-  Future<String?> _createNewSpreadsheet() async {
-    final token = await getAccessToken();
-    if (token == null) {
-      debugPrint('[GoogleSheets] Cannot create spreadsheet - no token');
-      return null;
-    }
-    
-    try {
-      debugPrint('[GoogleSheets] Creating new spreadsheet...');
-      
-      final response = await http.post(
-        Uri.parse('$API_BASE_URL?access_token=$token'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'properties': {
-            'title': 'OverTime Master - Quỹ Dự Án',
-          },
-          'sheets': [
-            {'properties': {'title': 'Tổng quan'}},
-          ],
-        }),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final newId = data['spreadsheetId'] as String;
-        
-        // Lưu ID vào preferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('google_sheets_spreadsheet_id', newId);
-        _spreadsheetId = newId;
-        
-        debugPrint('[GoogleSheets] Created new spreadsheet: $newId');
-        return newId;
-      } else {
-        debugPrint('[GoogleSheets] Failed to create spreadsheet: ${response.statusCode} - ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      debugPrint('[GoogleSheets] Error creating spreadsheet: $e');
-      return null;
-    }
-  }
 
 
   String _formatCurrency(num value) {

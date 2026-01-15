@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 enum TransactionType {
   income,  // Đề xuất nhận vào
@@ -15,6 +14,7 @@ class CashTransaction {
   final String? note;
   final String project; // Tên dự án/quỹ
   final String paymentType; // Hình thức thanh toán: 'Hoá đơn giấy' hoặc 'Chụp hình chuyển khoản'
+  final int taxRate; // Thuế suất: 0, 8, 10
   final DateTime createdAt;
 
   CashTransaction({
@@ -27,6 +27,7 @@ class CashTransaction {
     this.note,
     this.project = 'Mặc định',
     this.paymentType = 'Hoá đơn giấy',
+    this.taxRate = 0,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -41,6 +42,7 @@ class CashTransaction {
       'note': note,
       'project': project,
       'payment_type': paymentType,
+      'tax_rate': taxRate,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -56,6 +58,7 @@ class CashTransaction {
       note: map['note'],
       project: map['project'] ?? 'Mặc định',
       paymentType: map['payment_type'] ?? 'Hoá đơn giấy',
+      taxRate: map['tax_rate'] ?? 0,
       createdAt: DateTime.parse(map['createdAt']),
     );
   }
@@ -70,6 +73,7 @@ class CashTransaction {
     String? note,
     String? project,
     String? paymentType,
+    int? taxRate,
     DateTime? createdAt,
   }) {
     return CashTransaction(
@@ -82,6 +86,7 @@ class CashTransaction {
       note: note ?? this.note,
       project: project ?? this.project,
       paymentType: paymentType ?? this.paymentType,
+      taxRate: taxRate ?? this.taxRate,
       createdAt: createdAt ?? this.createdAt,
     );
   }

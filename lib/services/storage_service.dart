@@ -23,7 +23,7 @@ class StorageService {
     String path = join(await getDatabasesPath(), 'overtime.db');
     return await openDatabase(
       path,
-      version: 13,
+      version: 14,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE overtime(
@@ -63,6 +63,7 @@ class StorageService {
             note TEXT,
             project TEXT DEFAULT 'Mặc định',
             payment_type TEXT DEFAULT 'Hoá đơn giấy',
+            tax_rate INTEGER DEFAULT 0,
             createdAt TEXT
           )
         ''');
@@ -193,6 +194,11 @@ class StorageService {
         if (oldVersion < 13) {
           try {
             await db.execute('ALTER TABLE overtime ADD COLUMN shifts TEXT');
+          } catch (_) {}
+        }
+        if (oldVersion < 14) {
+          try {
+            await db.execute('ALTER TABLE cash_transactions ADD COLUMN tax_rate INTEGER DEFAULT 0');
           } catch (_) {}
         }
       },

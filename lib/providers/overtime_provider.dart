@@ -10,12 +10,9 @@ import '../models/citizen_profile.dart';
 import '../services/storage_service.dart';
 import '../services/settings_service.dart';
 import '../services/google_sheets_service.dart';
-import '../services/notification_service.dart';
-import '../services/backup_service.dart';
 import '../utils/overtime_calculator.dart';
 import '../services/update_service.dart';
 import '../services/citizen_lookup_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class OvertimeProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
@@ -59,15 +56,6 @@ class OvertimeProvider with ChangeNotifier {
   DateTime? get businessTripEnd => _businessTripEnd;
   double get advancePayment => _advancePayment;
 
-  double get totalMonthlyPay {
-    double total = 0;
-    for (var entry in _entries) {
-      if (entry.date.month == DateTime.now().month && entry.date.year == DateTime.now().year) {
-        total += entry.totalPay;
-      }
-    }
-    return total;
-  }
 
   double get totalDebtAmount {
     double total = 0;
@@ -86,20 +74,6 @@ class OvertimeProvider with ChangeNotifier {
     return total;
   }
 
-  // Cash Flow getters
-  double get totalCashIncome {
-    return _cashTransactions
-        .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
-  }
-
-  double get totalCashExpense {
-    return _cashTransactions
-        .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-  }
-
-  double get cashBalance => totalCashIncome - totalCashExpense;
 
   Future<void> fetchEntries() async {
     _isLoading = true;
@@ -129,23 +103,11 @@ class OvertimeProvider with ChangeNotifier {
     // Silent update check
     checkUpdateSilently();
 
-    // One-time migration sync for Payment Type (v1.0.5)
-    _checkMigrationSync();
 
     // Pre-load lookup services (MST, BHXH, Traffic Fine)
     CitizenLookupService().preloadAll();
   }
 
-  Future<void> _checkMigrationSync() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isSynced = prefs.getBool('payment_type_migration_synced_v8') ?? false;
-    if (!isSynced) {
-      debugPrint('🚀 Starting one-time migration sync for Payment Type...');
-      await syncAllProjectsToSheets();
-      await prefs.setBool('payment_type_migration_synced_v8', true);
-      debugPrint('✅ Migration sync completed');
-    }
-  }
 
   Future<void> checkUpdateSilently() async {
     try {
@@ -328,12 +290,6 @@ class OvertimeProvider with ChangeNotifier {
     await fetchEntries();
   }
 
-  // Add an existing entry object (useful for Undo)
-  Future<void> addEntryObject(OvertimeEntry entry) async {
-    await _storageService.insertEntry(entry);
-    await fetchEntries();
-  }
-
   Future<void> deleteEntry(int id) async {
     await _storageService.deleteEntry(id);
     await fetchEntries();
@@ -389,6 +345,7 @@ class OvertimeProvider with ChangeNotifier {
     String? note,
     String project = 'Mặc định',
     String paymentType = 'Hoá đơn giấy',
+    int taxRate = 0,
   }) async {
     final transaction = CashTransaction(
       type: type,
@@ -399,6 +356,7 @@ class OvertimeProvider with ChangeNotifier {
       note: note,
       project: project,
       paymentType: paymentType,
+      taxRate: taxRate,
     );
     await _storageService.insertCashTransaction(transaction);
     await fetchEntries();
@@ -488,17 +446,6 @@ class OvertimeProvider with ChangeNotifier {
     }
   }
   
-  /// Tính tổng income và expense theo project
-  Map<String, double> _getProjectTotals(String project) {
-    final projectTransactions = _cashTransactions.where((t) => t.project == project).toList();
-    final income = projectTransactions
-        .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    final expense = projectTransactions
-        .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    return {'income': income, 'expense': expense};
-  }
   
   /// Đồng bộ project lên Google Sheets
   Future<void> _syncProjectToSheets(String project) async {
@@ -562,12 +509,6 @@ class OvertimeProvider with ChangeNotifier {
         await _syncProjectToSheets(project);
       }
     }
-  }
-
-  /// Tính tổng thu nhập thực tế tháng này (Lương chính + Phụ cấp + OT thực tế)
-  double getTotalIncomeSoFar() {
-    final now = DateTime.now();
-    return getTotalIncomeForMonth(now.year, now.month);
   }
 
   /// Tính tổng thu nhập thực tế cho một tháng cụ thể
@@ -672,30 +613,4 @@ class OvertimeProvider with ChangeNotifier {
     return calculateBusinessTripPayForMonth(DateTime.now().year, DateTime.now().month);
   }
 
-  double calculateEstimatedSalary(int year, int month) {
-    // 1. Base Salary (Lương chính)
-    final baseSalary = (monthlySalary ?? 0) - allowance;
-    
-    // 2. OT Pay
-    double totalOT = 0;
-    for (var entry in _entries) {
-      if (entry.date.month == month && entry.date.year == year) {
-        totalOT += entry.totalPay;
-      }
-    }
-    
-    // 3. Allowances
-    final totalAllowances = allowance + _responsibilityAllowance + _diligenceAllowance;
-    
-    // 4. Business Trip (only if trip overlaps with the month)
-    // For simplicity, we'll assume the trip is fully within the month or user only cares about the total trip pay
-    // But to be accurate for a specific month, we should only count days in that month.
-    // However, the user's request seems to imply a "per trip" calculation for estimation.
-    // Let's stick to the total trip pay + internet for the estimation.
-    final businessTripPay = calculateBusinessTripPay();
-    final internetPay = businessTripPay > 0 ? 120000.0 : 0.0;
-    
-    // 5. Total
-    return baseSalary + totalOT + totalAllowances + businessTripPay + internetPay - _bhxhDeduction;
-  }
 }

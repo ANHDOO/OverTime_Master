@@ -138,6 +138,109 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
     );
   }
 
+  void _showCashFlowExportDialog(BuildContext context) {
+    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final projects = provider.cashTransactions.map((t) => t.project).toSet().toList()..sort();
+    if (projects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có dữ liệu thu chi')),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    final months = <DateTime>[];
+    for (int i = 0; i < 6; i++) {
+      months.add(DateTime(now.year, now.month - i, 1));
+    }
+
+    String selectedProject = projects.first;
+    DateTime selectedMonth = months.first;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Xuất phiếu giải chi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+              const SizedBox(height: 20),
+              
+              Text('Chọn dự án', style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                  borderRadius: AppRadius.borderMd,
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                ),
+                child: DropdownButton<String>(
+                  value: selectedProject,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  items: projects.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                  onChanged: (v) => setModalState(() => selectedProject = v!),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Text('Chọn tháng', style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                  borderRadius: AppRadius.borderMd,
+                  border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                ),
+                child: DropdownButton<DateTime>(
+                  value: selectedMonth,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  items: months.map((m) => DropdownMenuItem(value: m, child: Text(DateFormat('MM/yyyy').format(m)))).toList(),
+                  onChanged: (v) => setModalState(() => selectedMonth = v!),
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ExcelService.exportCashFlowForAccounting(
+                      context: context,
+                      transactions: provider.cashTransactions,
+                      project: selectedProject,
+                      month: selectedMonth.month,
+                      year: selectedMonth.year,
+                    );
+                  },
+                  icon: const Icon(Icons.table_view_rounded),
+                  label: const Text('Xuất Excel'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF217346),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
@@ -150,7 +253,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
           IconButton(
             icon: const Icon(Icons.table_view_rounded, color: Color(0xFF217346)),
             tooltip: 'Xuất Excel cho kế toán',
-            onPressed: () => _showExportDialog(context),
+            onPressed: () {
+              if (_tabController.index == 0) {
+                _showExportDialog(context);
+              } else {
+                _showCashFlowExportDialog(context);
+              }
+            },
           ),
         ],
         bottom: TabBar(

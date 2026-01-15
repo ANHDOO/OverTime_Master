@@ -132,7 +132,6 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
   }
 
   Future<void> _performSearch() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_mstController.text.isEmpty && _idController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Row(children: [const Icon(Icons.error_rounded, color: Colors.white), const SizedBox(width: 10), const Text('Vui lòng nhập MST hoặc Số CCCD')]), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd)));
       return;
@@ -146,7 +145,7 @@ class _MstSearchScreenState extends State<MstSearchScreen> {
     _saveLastSearch();
 
     try {
-      final fillResult = await _headlessController!.runJavaScriptReturningResult('''
+      await _headlessController!.runJavaScriptReturningResult('''
         (function() { var mstInput = document.querySelector('input[name="mst"]'); var idInput = document.querySelector('input[name="idCard"]') || document.querySelector('input[name="cmt"]') || document.querySelector('input[name="cmnd"]') || document.querySelector('input[name="cccd"]'); var captchaInput = document.querySelector('input[name="captcha"]'); if(mstInput) mstInput.value = '${_mstController.text}'; if(idInput) idInput.value = '${_idController.text}'; if(captchaInput) captchaInput.value = '${_captchaController.text}'; return 'done'; })()
       ''');
 

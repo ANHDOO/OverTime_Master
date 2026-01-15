@@ -80,10 +80,9 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
         (function() { var plateInput = document.getElementById('bienso96') || document.querySelector('input[name="bienso"]'); if(plateInput) plateInput.value = '${_plateController.text}'; var radioBtn = document.querySelector('input[name="loaixe"][value="' + '$_vehicleType' + '"]'); if(radioBtn) radioBtn.click(); var submitBtn = document.getElementById('submit99') || document.querySelector('input.submit'); if(submitBtn) submitBtn.click(); })();
       ''');
       
-      bool foundActualResult = false;
       for (int i = 0; i < 15; i++) {
         final check = await _headlessController!.runJavaScriptReturningResult('''(function() { var res = document.getElementById('resultValue'); if (!res) return 'NOT_FOUND'; if (document.querySelector('.css_table')) return 'HAS_DATA'; if (res.innerText.indexOf('Không tìm thấy vi phạm') !== -1) return 'NO_DATA'; return 'WAITING'; })()''');
-        if (['HAS_DATA', 'NO_DATA'].contains(check.toString().replaceAll('"', ''))) { foundActualResult = true; break; }
+        if (['HAS_DATA', 'NO_DATA'].contains(check.toString().replaceAll('"', ''))) { break; }
         await Future.delayed(const Duration(seconds: 1));
       }
 

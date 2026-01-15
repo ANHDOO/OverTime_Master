@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'dart:convert';
 import '../models/overtime_entry.dart';
+import '../models/cash_transaction.dart';
 import '../utils/overtime_calculator.dart';
 
 class ExcelService {
@@ -479,5 +480,289 @@ class ExcelService {
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row))
       ..value = DoubleCellValue(total)
       ..cellStyle = styleRight;
+  }
+
+  /// Xuất phiếu giải chi theo dự án cho kế toán
+  static Future<void> exportCashFlowForAccounting({
+    required BuildContext context,
+    required List<CashTransaction> transactions,
+    required String project,
+    required int month,
+    required int year,
+    String employeeName = 'Lý Anh Đô',
+  }) async {
+    // Lọc giao dịch theo dự án, tháng/năm và loại là Chi ra
+    final filteredTransactions = transactions.where((t) => 
+      t.project == project && 
+      t.date.month == month && 
+      t.date.year == year &&
+      t.type == TransactionType.expense
+    ).toList();
+
+    // Tính tổng thu nhập (Đã nhận) cho dự án/tháng này
+    final totalIncome = transactions.where((t) => 
+      t.project == project && 
+      t.date.month == month && 
+      t.date.year == year &&
+      t.type == TransactionType.income
+    ).fold<double>(0, (sum, t) => sum + t.amount);
+    
+    if (filteredTransactions.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không có dữ liệu chi ra cho dự án $project trong tháng $month/$year')),
+        );
+      }
+      return;
+    }
+    
+    // Sắp xếp theo ngày
+    filteredTransactions.sort((a, b) => a.date.compareTo(b.date));
+    
+    final excel = Excel.createExcel();
+    final sheetName = 'GiaiChi_$project';
+    excel.rename('Sheet1', sheetName);
+    final sheet = excel[sheetName];
+    
+    // === STYLES ===
+    final Border thinBorder = Border(borderStyle: BorderStyle.Thin);
+
+    final titleStyle = CellStyle(bold: true, fontSize: 16, fontFamily: 'Times New Roman', horizontalAlign: HorizontalAlign.Center);
+    final headerInfoStyle = CellStyle(fontFamily: 'Times New Roman', fontSize: 11, bold: true);
+    final normalInfoStyle = CellStyle(fontFamily: 'Times New Roman', fontSize: 11);
+
+    // NumberFormat for currency (thousands separator)
+    final currencyFormat = NumberFormat('#,###', 'vi_VN');
+    
+    final tableHeaderStyle = CellStyle(
+      bold: true, fontSize: 11, fontFamily: 'Times New Roman',
+      horizontalAlign: HorizontalAlign.Center, verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.fromHexString('#D9E2F3'),
+      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
+    );
+
+    final dataStyleCenter = CellStyle(
+      fontFamily: 'Times New Roman', fontSize: 11,
+      horizontalAlign: HorizontalAlign.Center, verticalAlign: VerticalAlign.Center,
+      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
+    );
+    
+    final dataStyleLeft = CellStyle(
+      fontFamily: 'Times New Roman', fontSize: 11,
+      horizontalAlign: HorizontalAlign.Left, verticalAlign: VerticalAlign.Center,
+      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
+    );
+
+    final dataStyleRight = CellStyle(
+      fontFamily: 'Times New Roman', fontSize: 11,
+      horizontalAlign: HorizontalAlign.Right, verticalAlign: VerticalAlign.Center,
+      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
+      numberFormat: NumFormat.standard_3,
+    );
+
+    // === HEADER ===
+    // Công ty
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue('CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ TƯ VẤN TIẾN PHÁT');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = headerInfoStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = TextCellValue('Địa chỉ: 17/3 Tam Bình, Kp66, P. Hiệp Bình, TP. Hồ Chí Minh');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle = normalInfoStyle;
+
+    // Tiêu đề phiếu
+    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3), CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 3));
+    final titleCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3));
+    titleCell.value = TextCellValue('PHIẾU GIẢI CHI');
+    titleCell.cellStyle = titleStyle;
+
+    // Thông tin chung
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).value = TextCellValue('Người đề xuất: $employeeName');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).cellStyle = normalInfoStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).value = TextCellValue('Ngày đề xuất: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).cellStyle = normalInfoStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = TextCellValue('Lý do: Giải chi vật tư thi công dự án $project');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).cellStyle = normalInfoStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 8)).value = TextCellValue('Gói: $project');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 8)).cellStyle = normalInfoStyle;
+
+    // === TABLE HEADER ===
+    final headers = ['STT', 'Tên vật tư/thiết bị', 'Đơn vị tính', 'Số lượng', 'Đơn giá', 'Thuế (%)', 'Thành tiền', 'Ghi chú', 'Nhà cung cấp'];
+    const headerRow = 10;
+    for (var i = 0; i < headers.length; i++) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: headerRow));
+      cell.value = TextCellValue(headers[i]);
+      cell.cellStyle = tableHeaderStyle;
+    }
+
+    // === DATA ROWS ===
+    // Theo dõi độ rộng tối đa của mỗi cột (số lượng ký tự)
+    List<int> maxColumnWidths = List.filled(headers.length, 0);
+    // Khởi tạo với độ dài của tiêu đề
+    for (int i = 0; i < headers.length; i++) {
+      maxColumnWidths[i] = headers[i].length;
+    }
+
+    // Sắp xếp theo Nhà cung cấp (note) để nhóm các giao dịch cùng nơi lại với nhau
+    filteredTransactions.sort((a, b) => (a.note ?? '').compareTo(b.note ?? ''));
+    
+    double totalAmount = 0;
+    int currentRow = headerRow + 1;
+    for (int i = 0; i < filteredTransactions.length; i++) {
+      final t = filteredTransactions[i];
+      final taxRate = t.taxRate;
+      final total = t.amount;
+      final unitPriceBeforeTax = total / (1 + taxRate / 100);
+      
+      final stt = (i + 1).toString();
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue(stt);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      if (stt.length > maxColumnWidths[0]) maxColumnWidths[0] = stt.length;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).value = TextCellValue(t.description);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).cellStyle = dataStyleLeft;
+      if (t.description.length > maxColumnWidths[1]) maxColumnWidths[1] = t.description.length;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow)).value = TextCellValue('Gói');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      if (3 > maxColumnWidths[2]) maxColumnWidths[2] = 3; // 'Gói' length is 3
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow)).value = DoubleCellValue(1);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(unitPriceBeforeTax.round()));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow)).cellStyle = dataStyleRight;
+      
+      final taxStr = '$taxRate%';
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).value = TextCellValue(taxStr);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      if (taxStr.length > maxColumnWidths[5]) maxColumnWidths[5] = taxStr.length;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(total.round()));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = dataStyleRight;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = TextCellValue('Đã thanh toán');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      if (13 > maxColumnWidths[7]) maxColumnWidths[7] = 13; // 'Đã thanh toán' length
+ 
+      final supplier = t.note ?? '';
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = TextCellValue(supplier);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      if (supplier.length > maxColumnWidths[8]) maxColumnWidths[8] = supplier.length;
+      
+      totalAmount += total;
+      currentRow++;
+    }
+
+    // === FOOTER ===
+    final footerStyle = CellStyle(bold: true, fontFamily: 'Times New Roman', fontSize: 11, topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder);
+    final footerStyleRight = CellStyle(
+      bold: true, fontFamily: 'Times New Roman', fontSize: 11, 
+      horizontalAlign: HorizontalAlign.Right, 
+      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
+      numberFormat: NumFormat.standard_3,
+    );
+
+    // Tổng cộng
+    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow));
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue('Tổng');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = footerStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(totalAmount.round()));
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = footerStyleRight;
+
+    // Đã nhận & Còn
+    currentRow++;
+    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow));
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue('Đã nhận');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = footerStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(totalIncome.round()));
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = footerStyleRight;
+
+    currentRow++;
+    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow));
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue('Còn');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = footerStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format((totalIncome - totalAmount).round()));
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = footerStyleRight;
+
+    // Gộp ô Nhà cung cấp (Cột 8)
+    int startRow = headerRow + 1;
+    int dataEndRow = headerRow + filteredTransactions.length;
+    while (startRow <= dataEndRow) {
+      String currentSupplier = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: startRow)).value?.toString() ?? '';
+      int endRow = startRow;
+      
+      while (endRow + 1 <= dataEndRow && 
+             (sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: endRow + 1)).value?.toString() ?? '') == currentSupplier) {
+        endRow++;
+      }
+      
+      if (endRow > startRow) {
+        sheet.merge(
+          CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: startRow),
+          CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: endRow),
+        );
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: startRow)).cellStyle = dataStyleCenter;
+      }
+      startRow = endRow + 1;
+    }
+
+    // === AUTO-FIT COLUMNS ===
+    // Gọi ở cuối cùng để đảm bảo tất cả dữ liệu đã được ghi
+    for (int i = 0; i < maxColumnWidths.length; i++) {
+      // Tăng hệ số lên 1.3 và padding lên 7 để an toàn hơn với font Times New Roman
+      double width = (maxColumnWidths[i] * 1.3 + 7).toDouble();
+      
+      // Giới hạn độ rộng
+      if (width > 80) width = 80;
+      
+      // Độ rộng tối thiểu cho các cột
+      if (i == 0 || i == 2 || i == 3 || i == 5) {
+        if (width < 10) width = 10;
+      } else {
+        if (width < 18) width = 18;
+      }
+      
+      sheet.setColumnWidth(i, width);
+    }
+
+    // Chữ ký
+    currentRow += 2;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).value = TextCellValue('Người Đề Xuất');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).cellStyle = headerInfoStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).value = TextCellValue('Thủ Quỹ');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).cellStyle = headerInfoStyle;
+
+    currentRow += 4;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).value = TextCellValue(employeeName);
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).cellStyle = normalInfoStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).value = TextCellValue('Phan Thu Uyên');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).cellStyle = normalInfoStyle;
+
+    // === COLUMN WIDTHS ===
+    sheet.setColumnWidth(0, 5);   // STT
+    sheet.setColumnWidth(1, 30);  // Tên
+    sheet.setColumnWidth(2, 12);  // ĐVT
+    sheet.setColumnWidth(3, 10);  // SL
+    sheet.setColumnWidth(4, 15);  // Đơn giá
+    sheet.setColumnWidth(5, 10);  // Thuế
+    sheet.setColumnWidth(6, 15);  // Thành tiền
+    sheet.setColumnWidth(7, 15);  // Ghi chú
+    sheet.setColumnWidth(8, 20);  // Nhà cung cấp
+
+    // === SAVE AND SHARE ===
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'PhieuGiaiChi_${project}_T${month}_$year.xlsx';
+      final filePath = '${directory.path}/$fileName';
+      final file = File(filePath);
+      
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        await file.writeAsBytes(fileBytes);
+        if (context.mounted) {
+          _showFileActionSheet(context, filePath, fileName);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error saving Excel: $e');
+    }
   }
 }

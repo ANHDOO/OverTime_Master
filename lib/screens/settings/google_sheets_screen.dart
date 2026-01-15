@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/google_sheets_service.dart';
 import '../../providers/overtime_provider.dart';
 import '../../theme/app_theme.dart';
@@ -16,9 +15,7 @@ class GoogleSheetsScreen extends StatefulWidget {
 class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
   String _status = '';
   bool _isSyncing = false;
-  bool _isSigningIn = false;
   bool _isSignedIn = false;
-  String? _signedInEmail;
 
   @override
   void initState() {
@@ -32,7 +29,6 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
     if (mounted) {
       setState(() {
         _isSignedIn = isSignedIn;
-        _signedInEmail = service.currentUserEmail;
       });
     }
   }

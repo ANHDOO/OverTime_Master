@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'notification_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {

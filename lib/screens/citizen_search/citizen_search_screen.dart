@@ -5,7 +5,6 @@ import 'bhxh_search_screen.dart';
 import 'exchange_rate_detail_screen.dart';
 import 'gold_price_detail_screen.dart';
 import 'fuel_price_detail_screen.dart';
-import '../../services/info_service.dart';
 import 'package:intl/intl.dart';
 import '../../models/citizen_profile.dart';
 import '../../providers/overtime_provider.dart';
@@ -20,10 +19,7 @@ class CitizenSearchScreen extends StatefulWidget {
 }
 
 class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
-  final InfoService _infoService = InfoService();
   final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
-  CitizenProfile? _selectedProfile;
-  bool _isLoadingInfo = false;
 
   @override
   void initState() {

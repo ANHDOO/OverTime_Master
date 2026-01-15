@@ -940,8 +940,6 @@ class DebtTab extends StatelessWidget {
   }
 
   Widget _buildHeroCard(BuildContext context, OvertimeProvider provider, NumberFormat format) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(16),

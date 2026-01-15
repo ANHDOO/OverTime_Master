@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
@@ -63,74 +62,6 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
     await prefs.setString('last_bhxh_bhxh_id', _bhxhIdController.text);
   }
 
-  void _initProvinces() {
-    _provinces = [
-      {"text": "Thành phố Hà Nội", "value": "01TTT"},
-      {"text": "Thành phố Hồ Chí Minh", "value": "79TTT"},
-      {"text": "Thành phố Đà Nẵng", "value": "48TTT"},
-      {"text": "Thành phố Hải Phòng", "value": "31TTT"},
-      {"text": "Thành phố Cần Thơ", "value": "92TTT"},
-      {"text": "Tỉnh An Giang", "value": "89TTT"},
-      {"text": "Tỉnh Bà Rịa - Vũng Tàu", "value": "77TTT"},
-      {"text": "Tỉnh Bắc Giang", "value": "24TTT"},
-      {"text": "Tỉnh Bắc Kạn", "value": "06TTT"},
-      {"text": "Tỉnh Bạc Liêu", "value": "95TTT"},
-      {"text": "Tỉnh Bắc Ninh", "value": "27TTT"},
-      {"text": "Tỉnh Bến Tre", "value": "83TTT"},
-      {"text": "Tỉnh Bình Định", "value": "52TTT"},
-      {"text": "Tỉnh Bình Dương", "value": "74TTT"},
-      {"text": "Tỉnh Bình Phước", "value": "70TTT"},
-      {"text": "Tỉnh Bình Thuận", "value": "60TTT"},
-      {"text": "Tỉnh Cà Mau", "value": "96TTT"},
-      {"text": "Tỉnh Cao Bằng", "value": "04TTT"},
-      {"text": "Tỉnh Đắk Lắk", "value": "66TTT"},
-      {"text": "Tỉnh Đắk Nông", "value": "67TTT"},
-      {"text": "Tỉnh Điện Biên", "value": "11TTT"},
-      {"text": "Tỉnh Đồng Nai", "value": "75TTT"},
-      {"text": "Tỉnh Đồng Tháp", "value": "87TTT"},
-      {"text": "Tỉnh Gia Lai", "value": "64TTT"},
-      {"text": "Tỉnh Hà Giang", "value": "02TTT"},
-      {"text": "Tỉnh Hà Nam", "value": "35TTT"},
-      {"text": "Tỉnh Hà Tĩnh", "value": "42TTT"},
-      {"text": "Tỉnh Hải Dương", "value": "30TTT"},
-      {"text": "Tỉnh Hậu Giang", "value": "93TTT"},
-      {"text": "Tỉnh Hòa Bình", "value": "17TTT"},
-      {"text": "Tỉnh Hưng Yên", "value": "33TTT"},
-      {"text": "Tỉnh Khánh Hòa", "value": "56TTT"},
-      {"text": "Tỉnh Kiên Giang", "value": "91TTT"},
-      {"text": "Tỉnh Kon Tum", "value": "62TTT"},
-      {"text": "Tỉnh Lai Châu", "value": "12TTT"},
-      {"text": "Tỉnh Lâm Đồng", "value": "68TTT"},
-      {"text": "Tỉnh Lạng Sơn", "value": "20TTT"},
-      {"text": "Tỉnh Lào Cai", "value": "10TTT"},
-      {"text": "Tỉnh Long An", "value": "80TTT"},
-      {"text": "Tỉnh Nam Định", "value": "36TTT"},
-      {"text": "Tỉnh Nghệ An", "value": "40TTT"},
-      {"text": "Tỉnh Ninh Bình", "value": "37TTT"},
-      {"text": "Tỉnh Ninh Thuận", "value": "58TTT"},
-      {"text": "Tỉnh Phú Thọ", "value": "25TTT"},
-      {"text": "Tỉnh Phú Yên", "value": "54TTT"},
-      {"text": "Tỉnh Quảng Bình", "value": "44TTT"},
-      {"text": "Tỉnh Quảng Nam", "value": "49TTT"},
-      {"text": "Tỉnh Quảng Ngãi", "value": "51TTT"},
-      {"text": "Tỉnh Quảng Ninh", "value": "22TTT"},
-      {"text": "Tỉnh Quảng Trị", "value": "45TTT"},
-      {"text": "Tỉnh Sóc Trăng", "value": "94TTT"},
-      {"text": "Tỉnh Sơn La", "value": "14TTT"},
-      {"text": "Tỉnh Tây Ninh", "value": "72TTT"},
-      {"text": "Tỉnh Thái Bình", "value": "34TTT"},
-      {"text": "Tỉnh Thái Nguyên", "value": "19TTT"},
-      {"text": "Tỉnh Thanh Hóa", "value": "38TTT"},
-      {"text": "Tỉnh Thừa Thiên Huế", "value": "46TTT"},
-      {"text": "Tỉnh Tiền Giang", "value": "82TTT"},
-      {"text": "Tỉnh Trà Vinh", "value": "84TTT"},
-      {"text": "Tỉnh Tuyên Quang", "value": "08TTT"},
-      {"text": "Tỉnh Vĩnh Long", "value": "86TTT"},
-      {"text": "Tỉnh Vĩnh Phúc", "value": "26TTT"},
-      {"text": "Tỉnh Yên Bái", "value": "15TTT"},
-    ];
-    _provinces.sort((a, b) => a['text']!.compareTo(b['text']!));
-  }
 
   void _initFromService() {
     final service = CitizenLookupService();
@@ -188,7 +119,6 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
   }
 
   Future<void> _performSearch() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_selectedProvince == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Row(children: [const Icon(Icons.error_rounded, color: Colors.white), const SizedBox(width: 10), const Text('Vui lòng chọn Tỉnh/Thành phố')]), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd)));
       return;

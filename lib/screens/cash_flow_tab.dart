@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -284,165 +283,177 @@ class _CashFlowTabState extends State<CashFlowTab> {
     final cardColor = isDark ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
+    final accentColor = isIncome ? AppColors.success : AppColors.danger;
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
         borderRadius: AppRadius.borderLg,
-        border: Border.all(color: borderColor.withValues(alpha: 0.5)),
-        boxShadow: isDark ? AppShadows.cardDark : AppShadows.cardLight,
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: isDark ? 0.12 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          isDark ? AppShadows.cardDark[0] : AppShadows.cardLight[0],
+        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: transaction)));
-          },
-          borderRadius: AppRadius.borderLg,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Icon
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isIncome 
-                          ? [AppColors.success.withValues(alpha: isDark ? 0.3 : 0.15), AppColors.successLight.withValues(alpha: isDark ? 0.2 : 0.1)]
-                          : [AppColors.danger.withValues(alpha: isDark ? 0.3 : 0.15), AppColors.dangerLight.withValues(alpha: isDark ? 0.2 : 0.1)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: AppRadius.borderMd,
-                  ),
-                  child: Icon(
-                    isIncome ? Icons.south_rounded : Icons.north_rounded,
-                    color: isIncome ? AppColors.success : AppColors.danger,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                
-                // Content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        transaction.description,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
+      child: ClipRRect(
+        borderRadius: AppRadius.borderLg,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Accent Line
+              Container(
+                width: 5,
+                color: accentColor,
+              ),
+              
+              // Main Content
+              Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => EditTransactionScreen(transaction: transaction)));
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.calendar_today_rounded, size: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('dd/MM/yyyy').format(transaction.date),
-                            style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12),
-                          ),
-                          if (transaction.project != 'Mặc định') ...[
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Container(
-                                constraints: const BoxConstraints(maxWidth: 80),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.tealPrimary.withValues(alpha: 0.12),
-                                  borderRadius: AppRadius.borderFull,
-                                ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Description
+                              Expanded(
                                 child: Text(
-                                  transaction.project,
-                                  style: TextStyle(color: AppColors.tealPrimary, fontSize: 10, fontWeight: FontWeight.w600),
-                                  maxLines: 1,
+                                  transaction.description,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    height: 1.3,
+                                  ),
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          ],
-                          if (transaction.imagePath != null) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                color: AppColors.info.withValues(alpha: 0.12),
-                                borderRadius: AppRadius.borderXs,
+                              const SizedBox(width: 16),
+                              // Amount
+                              Text(
+                                '${isIncome ? '+' : '-'}${format.format(transaction.amount)}',
+                                style: TextStyle(
+                                  color: accentColor,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 18,
+                                  letterSpacing: -0.5,
+                                ),
                               ),
-                              child: Icon(Icons.image_rounded, size: 12, color: AppColors.info),
-                            ),
-                          ],
-                          if (transaction.note != null && transaction.note!.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                color: AppColors.warning.withValues(alpha: 0.12),
-                                borderRadius: AppRadius.borderXs,
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Badges & Icons
+                              Expanded(
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (transaction.project != 'Mặc định')
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.tealPrimary.withValues(alpha: 0.1),
+                                          borderRadius: AppRadius.borderFull,
+                                        ),
+                                        child: Text(
+                                          transaction.project,
+                                          style: TextStyle(color: AppColors.tealPrimary, fontSize: 10, fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    if (transaction.taxRate > 0)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.1),
+                                          borderRadius: AppRadius.borderFull,
+                                        ),
+                                        child: Text(
+                                          'VAT ${transaction.taxRate}%',
+                                          style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w800),
+                                        ),
+                                      ),
+                                    if (transaction.imagePath != null)
+                                      Icon(Icons.image_rounded, size: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                    if (transaction.note != null && transaction.note!.isNotEmpty)
+                                      Icon(Icons.sticky_note_2_rounded, size: 16, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                  ],
+                                ),
                               ),
-                              child: Icon(Icons.sticky_note_2_rounded, size: 12, color: AppColors.warning),
+                              // Date
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_today_rounded, size: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    DateFormat('dd/MM/yyyy').format(transaction.date),
+                                    style: TextStyle(
+                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          if (transaction.note != null && transaction.note!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                                  borderRadius: AppRadius.borderMd,
+                                  border: Border(
+                                    left: BorderSide(color: AppColors.warning.withValues(alpha: 0.5), width: 2),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.store_rounded, size: 14, color: AppColors.warning.withValues(alpha: 0.8)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        transaction.note!,
+                                        style: TextStyle(
+                                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ],
                         ],
                       ),
-                      if (transaction.note != null && transaction.note!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            transaction.note!,
-                            style: TextStyle(
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                              fontSize: 11,
-                              fontStyle: FontStyle.italic,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                
-                // Amount
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${isIncome ? '+' : '-'}${format.format(transaction.amount)}',
-                      style: TextStyle(
-                        color: isIncome ? AppColors.success : AppColors.danger,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isIncome ? AppColors.success : AppColors.danger).withValues(alpha: 0.1),
-                        borderRadius: AppRadius.borderFull,
-                      ),
-                      child: Text(
-                        isIncome ? 'Thu' : 'Chi',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: isIncome ? AppColors.success : AppColors.danger,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

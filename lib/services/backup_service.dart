@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
-import 'google_sheets_service.dart';
 
 class BackupService extends ChangeNotifier {
   static final BackupService _instance = BackupService._internal();

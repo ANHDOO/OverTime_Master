@@ -25,6 +25,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime _selectedDate = DateTime.now();
   String _selectedProject = 'Mặc định';
   String _paymentType = 'Hoá đơn giấy';
+  int _taxRate = 0;
   String? _imagePath;
   final ImagePicker _picker = ImagePicker();
 
@@ -190,6 +191,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       project: _selectedProject,
       paymentType: _paymentType,
+      taxRate: _taxRate,
     );
 
     if (mounted) Navigator.pop(context);
@@ -246,12 +248,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _buildSectionTitle('Hình thức thanh toán', isDark),
             const SizedBox(height: 8),
             _buildPaymentTypeToggle(isDark),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            
+            // Tax Rate
+            if (_type == TransactionType.expense) ...[
+              _buildSectionTitle('Thuế suất (%)', isDark),
+              const SizedBox(height: 8),
+              _buildTaxRateSelector(isDark),
+              const SizedBox(height: 20),
+            ],
 
             // Note
-            _buildSectionTitle('Ghi chú thêm (tùy chọn)', isDark),
+            _buildSectionTitle(_type == TransactionType.expense ? 'Nhà cung cấp (tùy chọn)' : 'Ghi chú thêm (tùy chọn)', isDark),
             const SizedBox(height: 8),
-            _buildTextField(_noteController, 'Ghi chú thêm về giao dịch...', 2, isDark),
+            _type == TransactionType.expense 
+              ? _buildAutocompleteField(_noteController, 'Tên nhà cung cấp...', isDark, options: provider.cashTransactions.where((t) => t.note != null && t.note!.isNotEmpty).map((t) => t.note!).toSet().toList()..sort())
+              : _buildTextField(_noteController, 'Ghi chú thêm về giao dịch...', 2, isDark),
             const SizedBox(height: 20),
 
             // Image
@@ -431,6 +443,76 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Widget _buildAutocompleteField(TextEditingController controller, String hint, bool isDark, {required List<String> options}) {
+    return Autocomplete<String>(
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        if (textEditingValue.text == '') {
+          return const Iterable<String>.empty();
+        }
+        return options.where((String option) {
+          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+        });
+      },
+      onSelected: (String selection) {
+        controller.text = selection;
+      },
+      fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+        // Initialize textController with current value if empty
+        if (textController.text.isEmpty && controller.text.isNotEmpty) {
+          textController.text = controller.text;
+        }
+        
+        return TextField(
+          controller: textController,
+          focusNode: focusNode,
+          onChanged: (value) => controller.text = value,
+          style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurfaceVariant.withOpacity(0.5) : AppColors.lightSurfaceVariant,
+            border: OutlineInputBorder(borderRadius: AppRadius.borderMd, borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: AppRadius.borderMd,
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: AppRadius.borderMd,
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4.0,
+            borderRadius: AppRadius.borderMd,
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            child: Container(
+              width: MediaQuery.of(context).size.width - 40,
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final String option = options.elementAt(index);
+                  return ListTile(
+                    title: Text(option, style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPaymentTypeToggle(bool isDark) {
     return Row(
       children: [
@@ -576,6 +658,50 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaxRateSelector(bool isDark) {
+    return Row(
+      children: [
+        _buildTaxOption(0, isDark),
+        const SizedBox(width: 12),
+        _buildTaxOption(8, isDark),
+        const SizedBox(width: 12),
+        _buildTaxOption(10, isDark),
+      ],
+    );
+  }
+
+  Widget _buildTaxOption(int rate, bool isDark) {
+    final isSelected = _taxRate == rate;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _taxRate = rate),
+        child: AnimatedContainer(
+          duration: AppDurations.fast,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected 
+                ? AppColors.primary.withOpacity(isDark ? 0.2 : 0.1)
+                : (isDark ? AppColors.darkCard : AppColors.lightCard),
+            borderRadius: AppRadius.borderMd,
+            border: Border.all(
+              color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              '$rate%',
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppColors.primary : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+              ),
+            ),
+          ),
         ),
       ),
     );
