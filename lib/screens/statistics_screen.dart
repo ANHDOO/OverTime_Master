@@ -85,8 +85,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(isDark ? 0.2 : 0.1), borderRadius: AppRadius.borderMd),
-                  child: Icon(Icons.file_download_rounded, color: AppColors.primary),
+                  decoration: BoxDecoration(color: const Color(0xFF217346).withOpacity(isDark ? 0.2 : 0.1), borderRadius: AppRadius.borderMd),
+                  child: const Icon(Icons.table_view_rounded, color: Color(0xFF217346)),
                 ),
                 const SizedBox(width: 14),
                 Column(
@@ -148,7 +148,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
         title: const Text('Thống kê'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.file_download_rounded),
+            icon: const Icon(Icons.table_view_rounded, color: Color(0xFF217346)),
             tooltip: 'Xuất Excel cho kế toán',
             onPressed: () => _showExportDialog(context),
           ),
@@ -276,8 +276,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
           _buildSectionHeader('Biểu đồ lương tăng ca', Icons.show_chart_rounded, isDark),
           const SizedBox(height: 16),
           _buildOTLineChart(otData, format, isDark),
-          const SizedBox(height: 24),
-          _buildSalaryPredictionCard(provider, format, isDark),
           const SizedBox(height: 24),
           _buildWorkTrendsSection(provider, isDark),
           const SizedBox(height: 24),
@@ -407,45 +405,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSalaryPredictionCard(OvertimeProvider provider, NumberFormat format, bool isDark) {
-    final totalIncome = provider.getTotalIncomeSoFar();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: AppGradients.heroGreen,
-        borderRadius: AppRadius.borderXl,
-        boxShadow: AppShadows.heroGreenLight,
-      ),
-      child: Stack(
-        children: [
-          Positioned(top: -20, right: -20, child: Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.1)))),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Tổng thu nhập thực tế', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                  Icon(Icons.account_balance_wallet_rounded, color: Colors.white.withOpacity(0.7), size: 22),
-                ],
-              ),
-              Text('(Lương + Phụ cấp + OT thực tế)', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-              const SizedBox(height: 16),
-              Text(format.format(totalIncome), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -1)),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: AppRadius.borderFull),
-                child: Text('Lương OT: ${format.format(provider.totalMonthlyPay)}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

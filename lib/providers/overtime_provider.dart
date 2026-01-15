@@ -32,6 +32,13 @@ class OvertimeProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _hasUpdate = false;
   UpdateInfo? _updateInfo;
+  
+  // Salary Estimation state
+  double _responsibilityAllowance = 745000.0;
+  double _diligenceAllowance = 200000.0;
+  DateTime? _businessTripStart;
+  DateTime? _businessTripEnd;
+  double _advancePayment = 0.0;
 
   List<OvertimeEntry> get entries => _entries;
   List<DebtEntry> get debtEntries => _debtEntries;
@@ -45,6 +52,12 @@ class OvertimeProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get hasUpdate => _hasUpdate;
   UpdateInfo? get updateInfo => _updateInfo;
+  
+  double get responsibilityAllowance => _responsibilityAllowance;
+  double get diligenceAllowance => _diligenceAllowance;
+  DateTime? get businessTripStart => _businessTripStart;
+  DateTime? get businessTripEnd => _businessTripEnd;
+  double get advancePayment => _advancePayment;
 
   double get totalMonthlyPay {
     double total = 0;
@@ -97,6 +110,11 @@ class OvertimeProvider with ChangeNotifier {
       _allowance = await _settingsService.getAllowance();
       _leaveDays = await _settingsService.getLeaveDays();
       _bhxhDeduction = await _settingsService.getBhxhDeduction();
+      _responsibilityAllowance = await _settingsService.getResponsibilityAllowance();
+      _diligenceAllowance = await _settingsService.getDiligenceAllowance();
+      _businessTripStart = await _settingsService.getBusinessTripStart();
+      _businessTripEnd = await _settingsService.getBusinessTripEnd();
+      _advancePayment = await _settingsService.getAdvancePayment();
       _entries = await _storageService.getAllEntries();
       _debtEntries = await _storageService.getAllDebtEntries();
       _cashTransactions = await _storageService.getAllCashTransactions();
@@ -183,7 +201,7 @@ class OvertimeProvider with ChangeNotifier {
     if (_monthlySalary == null || _monthlySalary! <= 0) {
       return _hourlyRate;
     }
-    final baseSalary = _monthlySalary! - _allowance;
+    final baseSalary = _monthlySalary! - _responsibilityAllowance - _diligenceAllowance;
     final workingDays = getWorkingDaysForMonth(year, month) - _leaveDays;
     if (workingDays <= 0) return 0;
     return baseSalary / workingDays / 8;
@@ -192,6 +210,12 @@ class OvertimeProvider with ChangeNotifier {
   Future<void> updateMonthlySalary(double salary) async {
     await _settingsService.setMonthlySalary(salary);
     _monthlySalary = salary;
+    notifyListeners();
+  }
+
+  Future<void> updateAdvancePayment(double amount) async {
+    await _settingsService.setAdvancePayment(amount);
+    _advancePayment = amount;
     notifyListeners();
   }
 
@@ -207,18 +231,24 @@ class OvertimeProvider with ChangeNotifier {
     required int leaveDays,
     required double bhxhDeduction,
     required double hourlyRate,
+    double? responsibilityAllowance,
+    double? diligenceAllowance,
   }) async {
     await _settingsService.setMonthlySalary(totalSalary);
     await _settingsService.setAllowance(allowance);
     await _settingsService.setLeaveDays(leaveDays);
     await _settingsService.setBhxhDeduction(bhxhDeduction);
     await _settingsService.setHourlyRate(hourlyRate);
+    if (responsibilityAllowance != null) await _settingsService.setResponsibilityAllowance(responsibilityAllowance);
+    if (diligenceAllowance != null) await _settingsService.setDiligenceAllowance(diligenceAllowance);
     
     _monthlySalary = totalSalary;
     _allowance = allowance;
     _leaveDays = leaveDays;
     _bhxhDeduction = bhxhDeduction;
     _hourlyRate = hourlyRate;
+    if (responsibilityAllowance != null) _responsibilityAllowance = responsibilityAllowance;
+    if (diligenceAllowance != null) _diligenceAllowance = diligenceAllowance;
 
     await _recalculateAllEntries();
     notifyListeners();
@@ -534,7 +564,6 @@ class OvertimeProvider with ChangeNotifier {
     }
   }
 
-
   /// Tính tổng thu nhập thực tế tháng này (Lương chính + Phụ cấp + OT thực tế)
   double getTotalIncomeSoFar() {
     final now = DateTime.now();
@@ -552,6 +581,8 @@ class OvertimeProvider with ChangeNotifier {
     final baseIncome = (monthlySalary ?? 0);
     return baseIncome + totalOT - _bhxhDeduction;
   }
+
+
 
   /// Phân tích xu hướng làm việc theo thứ trong tuần
   Map<int, Map<String, dynamic>> getWorkTrends() {
@@ -587,4 +618,84 @@ class OvertimeProvider with ChangeNotifier {
     await fetchEntries();
   }
 
+  // Salary Estimation methods
+  Future<void> updateResponsibilityAllowance(double amount) async {
+    await _settingsService.setResponsibilityAllowance(amount);
+    _responsibilityAllowance = amount;
+    notifyListeners();
+  }
+
+  Future<void> updateDiligenceAllowance(double amount) async {
+    await _settingsService.setDiligenceAllowance(amount);
+    _diligenceAllowance = amount;
+    notifyListeners();
+  }
+
+  Future<void> updateBusinessTripDates(DateTime? start, DateTime? end) async {
+    await _settingsService.setBusinessTripStart(start);
+    await _settingsService.setBusinessTripEnd(end);
+    _businessTripStart = start;
+    _businessTripEnd = end;
+    notifyListeners();
+  }
+
+  bool isOnBusinessTripInMonth(int year, int month) {
+    if (_businessTripStart == null || _businessTripEnd == null) return false;
+    
+    final monthStart = DateTime(year, month, 1);
+    final monthEnd = DateTime(year, month + 1, 0);
+
+    final overlapStart = _businessTripStart!.isAfter(monthStart) ? _businessTripStart! : monthStart;
+    final overlapEnd = _businessTripEnd!.isBefore(monthEnd) ? _businessTripEnd! : monthEnd;
+
+    return !overlapStart.isAfter(overlapEnd);
+  }
+
+  double calculateBusinessTripPayForMonth(int year, int month) {
+    if (_businessTripStart == null || _businessTripEnd == null) return 0;
+
+    // Attribution Logic: Pay the entire trip amount in the month the trip ENDS
+    if (_businessTripEnd!.year != year || _businessTripEnd!.month != month) {
+      return 0;
+    }
+
+    final totalDays = _businessTripEnd!.difference(_businessTripStart!).inDays + 1;
+    if (totalDays <= 0) return 0;
+
+    int periods = (totalDays - 1) ~/ 14;
+    double dailyRate = 100000.0 + (periods * 20000.0);
+    
+    return totalDays * dailyRate;
+  }
+
+  double calculateBusinessTripPay() {
+    return calculateBusinessTripPayForMonth(DateTime.now().year, DateTime.now().month);
+  }
+
+  double calculateEstimatedSalary(int year, int month) {
+    // 1. Base Salary (Lương chính)
+    final baseSalary = (monthlySalary ?? 0) - allowance;
+    
+    // 2. OT Pay
+    double totalOT = 0;
+    for (var entry in _entries) {
+      if (entry.date.month == month && entry.date.year == year) {
+        totalOT += entry.totalPay;
+      }
+    }
+    
+    // 3. Allowances
+    final totalAllowances = allowance + _responsibilityAllowance + _diligenceAllowance;
+    
+    // 4. Business Trip (only if trip overlaps with the month)
+    // For simplicity, we'll assume the trip is fully within the month or user only cares about the total trip pay
+    // But to be accurate for a specific month, we should only count days in that month.
+    // However, the user's request seems to imply a "per trip" calculation for estimation.
+    // Let's stick to the total trip pay + internet for the estimation.
+    final businessTripPay = calculateBusinessTripPay();
+    final internetPay = businessTripPay > 0 ? 120000.0 : 0.0;
+    
+    // 5. Total
+    return baseSalary + totalOT + totalAllowances + businessTripPay + internetPay - _bhxhDeduction;
+  }
 }

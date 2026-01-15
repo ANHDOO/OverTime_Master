@@ -10,6 +10,7 @@ import '../screens/settings/notifications_screen.dart';
 import '../screens/settings/security_screen.dart';
 import '../screens/settings/update_screen.dart';
 import '../screens/citizen_search/citizen_search_screen.dart';
+import '../screens/salary_estimation_screen.dart';
 import '../services/update_service.dart';
 import '../services/google_sheets_service.dart';
 
@@ -174,6 +175,17 @@ class _SideMenuState extends State<SideMenu> {
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const CitizenSearchScreen()));
+                      },
+                      isDark: isDark,
+                    ),
+                    _buildNavItem(
+                      context,
+                      icon: Icons.calculate_outlined,
+                      label: 'Dự toán lương',
+                      gradientColors: [Colors.blue, Colors.blue.shade900],
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SalaryEstimationScreen()));
                       },
                       isDark: isDark,
                     ),

@@ -15,7 +15,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _rateController;
   late TextEditingController _totalSalaryController;
-  late TextEditingController _allowanceController;
+  late TextEditingController _responsibilityController;
+  late TextEditingController _diligenceController;
   late TextEditingController _leaveDaysController;
   late TextEditingController _bhxhController;
   bool _useMonthlySalary = true;
@@ -33,7 +34,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         text: formatter.format(provider.monthlySalary != null && provider.monthlySalary! > 0 
             ? provider.monthlySalary! 
             : 15000000));
-    _allowanceController = TextEditingController(text: formatter.format(provider.allowance));
+    _responsibilityController = TextEditingController(text: formatter.format(provider.responsibilityAllowance));
+    _diligenceController = TextEditingController(text: formatter.format(provider.diligenceAllowance));
     _leaveDaysController = TextEditingController(text: provider.leaveDays.toString());
     _bhxhController = TextEditingController(text: formatter.format(provider.bhxhDeduction));
     _useMonthlySalary = provider.monthlySalary == null || provider.monthlySalary! >= 0;
@@ -43,7 +45,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _rateController.dispose();
     _totalSalaryController.dispose();
-    _allowanceController.dispose();
+    _responsibilityController.dispose();
+    _diligenceController.dispose();
     _leaveDaysController.dispose();
     _bhxhController.dispose();
     super.dispose();
@@ -51,10 +54,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   double _calculateHourlyRate(OvertimeProvider provider) {
     final totalSalary = double.tryParse(_totalSalaryController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
-    final allowance = double.tryParse(_allowanceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
+    final responsibility = double.tryParse(_responsibilityController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
+    final diligence = double.tryParse(_diligenceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
     final leaveDays = int.tryParse(_leaveDaysController.text) ?? 0;
     
-    final baseSalary = totalSalary - allowance;
+    final baseSalary = totalSalary - responsibility - diligence;
     final workingDays = provider.getWorkingDaysInMonth();
     final actualWorkingDays = workingDays - leaveDays;
     
@@ -94,13 +98,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 20),
                   
-                  // Fixed Allowance
+                  const SizedBox(height: 20),
+
+                  // Responsibility Allowance
                   _buildInputSection(
-                    title: 'Phụ cấp cố định',
-                    subtitle: 'Trách nhiệm + Chuyên cần',
-                    controller: _allowanceController,
-                    hint: 'Ví dụ: 945,000',
-                    icon: Icons.card_giftcard_rounded,
+                    title: 'Phụ cấp Trách nhiệm',
+                    controller: _responsibilityController,
+                    hint: 'Ví dụ: 745,000',
+                    icon: Icons.assignment_ind_rounded,
+                    isDark: isDark,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Diligence Allowance
+                  _buildInputSection(
+                    title: 'Phụ cấp Chuyên cần',
+                    controller: _diligenceController,
+                    hint: 'Ví dụ: 200,000',
+                    icon: Icons.verified_user_rounded,
                     isDark: isDark,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -285,9 +301,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildCalculationSummary(OvertimeProvider provider, bool isDark) {
     final totalSalary = double.tryParse(_totalSalaryController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
-    final allowance = double.tryParse(_allowanceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
+    final responsibility = double.tryParse(_responsibilityController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
+    final diligence = double.tryParse(_diligenceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
     final leaveDays = int.tryParse(_leaveDaysController.text) ?? 0;
-    final baseSalary = totalSalary - allowance;
+    final baseSalary = totalSalary - responsibility - diligence; // Gasoline is NOT subtracted
     final bhxh = double.tryParse(_bhxhController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
     final workingDays = provider.getWorkingDaysInMonth();
     final actualWorkingDays = workingDays - leaveDays;
@@ -348,10 +365,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Column(
                     children: [
                       _buildSummaryRow('Lương hợp đồng', currencyFormat.format(totalSalary)),
-                      _buildSummaryRow('Phụ cấp cố định', '- ${currencyFormat.format(allowance)}'),
+                      _buildSummaryRow('Phụ cấp Trách nhiệm', '- ${currencyFormat.format(responsibility)}'),
+                      _buildSummaryRow('Phụ cấp Chuyên cần', '- ${currencyFormat.format(diligence)}'),
                       _buildSummaryRow('Tiền BHXH (trừ)', '- ${currencyFormat.format(bhxh)}'),
                       Divider(color: Colors.white.withOpacity(0.2), height: 16),
-                      _buildSummaryRow('Thu nhập cơ sở', currencyFormat.format(totalSalary - bhxh), highlight: true),
+                      _buildSummaryRow('Lương chính (tính OT)', currencyFormat.format(baseSalary), highlight: true),
                     ],
                   ),
                 ),
@@ -410,6 +428,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           '${currencyFormat.format(baseSalary)} ÷ $actualWorkingDays ÷ 8',
                           style: const TextStyle(color: Colors.white54, fontSize: 10),
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '* Đơn giá giờ thay đổi linh hoạt theo số ngày công từng tháng.',
+                        style: TextStyle(color: Colors.white54, fontSize: 9, fontStyle: FontStyle.italic),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -485,13 +509,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final hourlyRate = _calculateHourlyRate(provider);
       if (hourlyRate > 0) {
         final totalSalary = double.tryParse(_totalSalaryController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
-        final allowance = double.tryParse(_allowanceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
+        final responsibility = double.tryParse(_responsibilityController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
+        final diligence = double.tryParse(_diligenceController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
         final leaveDays = int.tryParse(_leaveDaysController.text) ?? 0;
         final bhxh = double.tryParse(_bhxhController.text.replaceAll(',', '').replaceAll('.', '')) ?? 0;
         
         await provider.saveSalarySettings(
           totalSalary: totalSalary,
-          allowance: allowance,
+          allowance: 0, // Gasoline is now handled automatically
+          responsibilityAllowance: responsibility,
+          diligenceAllowance: diligence,
           leaveDays: leaveDays,
           bhxhDeduction: bhxh,
           hourlyRate: hourlyRate,
