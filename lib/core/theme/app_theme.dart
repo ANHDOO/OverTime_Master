@@ -238,7 +238,8 @@ class AppDurations {
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light => ThemeData(
+  /// Tạo light theme với font tùy chọn
+  static ThemeData lightWithFont(String? fontFamily) => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
@@ -246,7 +247,7 @@ class AppTheme {
           primary: AppColors.primary,
           surface: AppColors.lightSurface,
         ),
-        fontFamily: 'UTMHelvetIns',
+        fontFamily: fontFamily ?? 'UTMHelvetIns',
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           backgroundColor: Colors.transparent,
@@ -254,7 +255,8 @@ class AppTheme {
         ),
       );
 
-  static ThemeData get dark => ThemeData(
+  /// Tạo dark theme với font tùy chọn
+  static ThemeData darkWithFont(String? fontFamily) => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
@@ -263,11 +265,15 @@ class AppTheme {
           primary: AppColors.primaryLight,
           surface: AppColors.darkSurface,
         ),
-        fontFamily: 'UTMHelvetIns',
+        fontFamily: fontFamily ?? 'UTMHelvetIns',
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
       );
+
+  // Legacy getters for backwards compatibility
+  static ThemeData get light => lightWithFont(null);
+  static ThemeData get dark => darkWithFont(null);
 }

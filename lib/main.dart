@@ -53,8 +53,8 @@ class OvertimeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, FontProvider>(
+      builder: (context, themeProvider, fontProvider, child) {
         // Set system UI overlay style based on current theme
         final isDark = themeProvider.themeMode == ThemeMode.dark ||
             (themeProvider.themeMode == ThemeMode.system &&
@@ -72,6 +72,9 @@ class OvertimeApp extends StatelessWidget {
                 ),
         );
 
+        // Lấy font family từ FontProvider
+        final fontFamily = fontProvider.currentFontFamily;
+
         return MaterialApp(
           navigatorKey: navigatorKey,
           title: 'Sổ Tay Công Việc',
@@ -86,9 +89,9 @@ class OvertimeApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          // 🎨 New Theme System with Dark Mode Toggle
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
+          // 🎨 Theme với font động từ FontProvider
+          theme: AppTheme.lightWithFont(fontFamily),
+          darkTheme: AppTheme.darkWithFont(fontFamily),
           themeMode: themeProvider.themeMode,
           home: const SplashScreen(),
         );

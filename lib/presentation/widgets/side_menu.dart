@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/theme/app_theme.dart';
-import '../../logic/providers/theme_provider.dart';
 import '../screens/settings_screen.dart';
 import '../screens/settings/google_sheets_screen.dart';
 import '../screens/settings/backup_screen.dart';
@@ -197,10 +196,6 @@ class _SideMenuState extends State<SideMenu> {
                     ),
                     
                     _buildSectionLabel('Cài đặt', isDark),
-                    const SizedBox(height: 4),
-                    
-                    // 🌙 Theme Toggle
-                    _buildThemeToggle(context, isDark),
                     const SizedBox(height: 4),
                     
                     ListenableBuilder(
@@ -485,132 +480,6 @@ class _SideMenuState extends State<SideMenu> {
           fontWeight: FontWeight.w700,
           color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
           letterSpacing: 1,
-        ),
-      ),
-    );
-  }
-
-  /// 🌙 Theme Toggle Widget
-  Widget _buildThemeToggle(BuildContext context, bool isDark) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.08),
-            borderRadius: AppRadius.borderMd,
-            border: Border.all(color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: AppGradients.heroBlue,
-                  borderRadius: AppRadius.borderSm,
-                ),
-                child: Icon(themeProvider.currentModeIcon, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Giao diện',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                      ),
-                    ),
-                    Text(
-                      themeProvider.currentModeLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Theme toggle buttons
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                  borderRadius: AppRadius.borderFull,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildThemeButton(
-                      context,
-                      icon: Icons.light_mode_rounded,
-                      isSelected: themeProvider.themeMode == ThemeMode.light,
-                      onTap: () => themeProvider.setThemeMode(ThemeMode.light),
-                      tooltip: 'Sáng',
-                    ),
-                    const SizedBox(width: 4),
-                    _buildThemeButton(
-                      context,
-                      icon: Icons.brightness_auto_rounded,
-                      isSelected: themeProvider.themeMode == ThemeMode.system,
-                      onTap: () => themeProvider.setThemeMode(ThemeMode.system),
-                      tooltip: 'Tự động',
-                    ),
-                    const SizedBox(width: 4),
-                    _buildThemeButton(
-                      context,
-                      icon: Icons.dark_mode_rounded,
-                      isSelected: themeProvider.themeMode == ThemeMode.dark,
-                      onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
-                      tooltip: 'Tối',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildThemeButton(
-    BuildContext context, {
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required String tooltip,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppDurations.fast,
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            gradient: isSelected ? AppGradients.heroBlue : null,
-            color: isSelected ? null : Colors.transparent,
-            borderRadius: AppRadius.borderFull,
-            boxShadow: isSelected ? [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ] : null,
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: isSelected ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-          ),
         ),
       ),
     );
