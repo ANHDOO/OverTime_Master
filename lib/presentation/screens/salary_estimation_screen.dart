@@ -5,6 +5,7 @@ import '../../logic/providers/overtime_provider.dart';
 import '../widgets/side_menu.dart';
 import '../../core/theme/app_theme.dart';
 import 'main_screen.dart';
+import '../widgets/smart_money_input.dart';
 
 class SalaryEstimationScreen extends StatefulWidget {
   const SalaryEstimationScreen({super.key});
@@ -41,11 +42,13 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
                         provider.responsibilityAllowance - provider.diligenceAllowance;
     
     double businessTripPay = provider.calculateBusinessTripPayForMonth(_selectedMonth.year, _selectedMonth.month);
-    bool isOnTrip = provider.isOnBusinessTripInMonth(_selectedMonth.year, _selectedMonth.month);
-    double internetPay = isOnTrip ? 120000.0 : 0.0;
+    int businessTripDays = provider.calculateBusinessTripDaysInMonth(_selectedMonth.year, _selectedMonth.month);
+    
+    // Logic: Tiền mạng = 120k nếu đi công tác >= 14 ngày
+    double internetPay = businessTripDays >= 14 ? 120000.0 : 0.0;
     
     // Logic: Xăng xe = 100k nếu không đi công tác, ngược lại = 0
-    double gasolinePay = isOnTrip ? 0.0 : 100000.0;
+    double gasolinePay = businessTripDays > 0 ? 0.0 : 100000.0;
     
     // Sub-totals
     double section1Total = baseSalary + provider.responsibilityAllowance + provider.diligenceAllowance + totalOT;
@@ -54,7 +57,7 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
     double section3Total = provider.bhxhDeduction + provider.advancePayment; // CÁC KHOẢN TRỪ
 
     // Final Salary = (1+2) - 3
-    double finalSalary = provider.calculateFinalSalaryForMonth(_selectedMonth.year, _selectedMonth.month);
+    double finalSalary = totalGrossSalary - section3Total;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -154,7 +157,12 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
             _buildSectionTitle('2. PHỤ CẤP', isDark),
             _buildTable([
               _buildRow('2.1 Xăng (km)', gasolinePay, isDark),
-              _buildRow('2.2 Tiền mạng', internetPay, isDark),
+              _buildRow(
+                '2.2 Tiền mạng', 
+                internetPay, 
+                isDark,
+                subtitle: businessTripDays > 0 && businessTripDays < 14 ? 'Cần ≥ 14 ngày (Hiện: $businessTripDays ngày)' : null,
+              ),
               _buildRow('2.3 Công tác', businessTripPay, isDark, isEditable: true, onTap: _showBusinessTripDialog),
               _buildSubTotalRow('Tổng cộng (2)', section2Total, isDark),
             ], isDark),
@@ -385,15 +393,15 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         title: Text('Nhập tiền Tạm ứng', style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontWeight: FontWeight.w800)),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-          decoration: InputDecoration(
-            labelText: 'Số tiền (VNĐ)',
-            labelStyle: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-            hintText: 'Ví dụ: 2000000',
-            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9, // Constrain width to prevent jumping
+          child: SmartMoneyInput(
+            controller: controller,
+            label: 'Số tiền (VNĐ)',
+            textColor: isDark ? Colors.white : Colors.black,
+            onChanged: (val) {
+               // Optional: handle real-time changes if needed
+            },
           ),
         ),
         actions: [
@@ -403,7 +411,9 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0.0;
+              // Strip separators (dots) before parsing
+              final cleanText = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
+              final amount = double.tryParse(cleanText) ?? 0.0;
               provider.updateAdvancePayment(amount);
               Navigator.pop(context);
             },
@@ -435,9 +445,10 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
                 subtitle: Text(start != null ? DateFormat('dd/MM/yyyy').format(start!) : 'Chưa chọn', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                 trailing: Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
                 onTap: () async {
+                  final initial = start ?? DateTime(_selectedMonth.year, _selectedMonth.month, 1);
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: start ?? DateTime.now(),
+                    initialDate: initial.isBefore(DateTime(2020)) ? DateTime(2020) : (initial.isAfter(DateTime(2030)) ? DateTime(2030) : initial),
                     firstDate: DateTime(2020),
                     lastDate: DateTime(2030),
                     builder: (context, child) => Theme(
@@ -455,9 +466,10 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
                 subtitle: Text(end != null ? DateFormat('dd/MM/yyyy').format(end!) : 'Chưa chọn', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
                 trailing: Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
                 onTap: () async {
+                  final initial = end ?? start ?? DateTime(_selectedMonth.year, _selectedMonth.month, 1);
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: end ?? start ?? DateTime.now(),
+                    initialDate: initial.isBefore(DateTime(2020)) ? DateTime(2020) : (initial.isAfter(DateTime(2030)) ? DateTime(2030) : initial),
                     firstDate: start ?? DateTime(2020),
                     lastDate: DateTime(2030),
                     builder: (context, child) => Theme(

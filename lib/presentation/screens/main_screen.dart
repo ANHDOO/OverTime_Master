@@ -45,7 +45,7 @@ class _MainScreenState extends State<MainScreen> {
       case 0:
         return 'Quỹ Dự Án';
       case 1:
-        return 'OT Master';
+        return 'OverTime';
       case 2:
         return 'Lãi nợ lương';
       case 3:
@@ -90,10 +90,7 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: Text(
-          _getAppBarTitle(),
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
-        ),
+        title: Text(_getAppBarTitle()),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_search_rounded),

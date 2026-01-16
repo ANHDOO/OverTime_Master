@@ -42,14 +42,19 @@ void callbackDispatcher() {
     
     try {
       switch (taskName) {
-        case goldPriceCheckTask:
-          await _checkGoldPriceAndNotify();
+        case goldPriceUniqueTaskName:
+          await checkGoldPriceAndNotify();
           break;
           
         case oneTimeReminderTask:
           final title = inputData?['title'] ?? 'Nhắc nhở';
           final body = inputData?['body'] ?? 'Bạn có thông báo mới';
-          await _showSimpleNotification(998, title, body);
+          
+          if (title == 'TEST_GOLD_CHECK') {
+            await checkGoldPriceAndNotify(forceNotify: true);
+          } else {
+            await _showSimpleNotification(998, title, body);
+          }
           break;
           
         case dailyReminderTask:
@@ -74,8 +79,15 @@ void callbackDispatcher() {
 }
 
 /// Fetch gold price and send notification if changed
-Future<void> _checkGoldPriceAndNotify() async {
+Future<void> checkGoldPriceAndNotify({bool forceNotify = false}) async {
   final prefs = await SharedPreferences.getInstance();
+  
+  // Check if gold notifications are enabled (default to true)
+  final isEnabled = prefs.getBool('gold_notification_enabled') ?? true;
+  if (!isEnabled && !forceNotify) {
+    debugPrint('[BackgroundService] Gold notifications are disabled.');
+    return;
+  }
   
   // Create HTTP client that bypasses SSL issues
   final client = IOClient(
@@ -100,24 +112,32 @@ Future<void> _checkGoldPriceAndNotify() async {
             final type = cols[0].text.trim();
             if (type.contains('Vàng Nhẫn Trơn')) {
               final sellPriceStr = cols[2].text.trim();
-              final sellPrice = _parsePrice(sellPriceStr);
+              final sellPrice = parsePrice(sellPriceStr);
+              final buyPrice = parsePrice(cols[1].text.trim());
               
-              // Get last saved price
-              final lastPrice = prefs.getDouble('last_gold_sell_price') ?? 0;
+              // Get last saved prices
+              final lastSellPrice = prefs.getDouble('last_gold_sell_price') ?? 0;
+              final lastBuyPrice = prefs.getDouble('last_gold_buy_price') ?? 0;
               
-              debugPrint('[BackgroundService] Current: $sellPrice, Last: $lastPrice');
+              debugPrint('[BackgroundService] Sell: $sellPrice ($lastSellPrice), Buy: $buyPrice ($lastBuyPrice)');
               
-              if (sellPrice > 0 && sellPrice != lastPrice) {
+              if (sellPrice > 0 && (sellPrice != lastSellPrice || buyPrice != lastBuyPrice || forceNotify)) {
                 // Price changed! Send notification
-                await _sendGoldPriceNotification(sellPrice, lastPrice);
+                await sendGoldPriceNotification(
+                  sellPrice, 
+                  lastSellPrice, 
+                  newBuyPrice: buyPrice,
+                  oldBuyPrice: lastBuyPrice,
+                );
                 
-                // Save new price to prefs
+                // Save new prices to prefs
                 await prefs.setDouble('last_gold_sell_price', sellPrice);
+                await prefs.setDouble('last_gold_buy_price', buyPrice);
                 
                 // Also save to database history
                 try {
                   final storage = StorageService();
-                  final buyPrice = _parsePrice(cols[1].text.trim());
+                  final buyPrice = parsePrice(cols[1].text.trim());
                   final now = DateTime.now();
                   final dateStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
                   
@@ -141,56 +161,92 @@ Future<void> _checkGoldPriceAndNotify() async {
         }
       }
     }
+  } catch (e) {
+    debugPrint('[BackgroundService] Scraper error: $e');
   } finally {
     client.close();
   }
 }
 
-/// Parse price string to double
-double _parsePrice(String? priceStr) {
+/// Parse price string to double (Unify unit scale x1000)
+double parsePrice(String? priceStr) {
   if (priceStr == null || priceStr.isEmpty) return 0;
   final cleaned = priceStr.replaceAll(RegExp(r'[^\d]'), '');
-  return double.tryParse(cleaned) ?? 0;
+  double val = double.tryParse(cleaned) ?? 0;
+  // If price is in "thousand" unit (e.g. 15.350), multiply by 1000 to get raw value
+  if (val > 0 && val < 1000000) val *= 1000;
+  return val;
 }
 
 /// Send notification about gold price change
-Future<void> _sendGoldPriceNotification(double newPrice, double oldPrice) async {
+Future<void> sendGoldPriceNotification(
+  double newSellPrice, 
+  double oldSellPrice, {
+  double? newBuyPrice,
+  double? oldBuyPrice,
+}) async {
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   
   // Initialize notifications
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
   const initSettings = InitializationSettings(android: androidSettings);
   await flutterLocalNotificationsPlugin.initialize(initSettings);
   
-  // Determine if price went up or down
-  final isUp = newPrice > oldPrice;
-  final diff = newPrice - oldPrice;
-  final diffStr = _formatPrice(diff.abs());
-  
+  // Determine if price went up or down for the title
+  String status = 'biến động';
+  if (oldSellPrice > 0) {
+    if (newSellPrice > oldSellPrice) status = 'tăng';
+    else if (newSellPrice < oldSellPrice) status = 'giảm';
+    else status = 'ổn định';
+  }
+
   // Format prices
-  final newPriceStr = _formatPrice(newPrice);
-  final arrow = isUp ? '📈 +' : '📉 -';
+  final sellPriceStr = _formatPrice(newSellPrice);
+  final buyPriceStr = newBuyPrice != null ? _formatPrice(newBuyPrice) : '---';
   
+  // Helper to format delta
+  String _getDeltaText(double current, double? previous) {
+    if (previous == null || previous == 0 || current == previous) return '';
+    final diff = (current - previous).abs();
+    final diffStr = _formatPrice(diff);
+    return current > previous ? '(+$diffStr)' : '(-$diffStr)';
+  }
+
+  final sellDelta = _getDeltaText(newSellPrice, oldSellPrice);
+  final buyDelta = newBuyPrice != null ? _getDeltaText(newBuyPrice, oldBuyPrice) : '';
+
+  final String title = 'Vàng Nhẫn Trơn 9999 $status';
+  final String body = 'Mua: $buyPriceStr $buyDelta | Bán: $sellPriceStr $sellDelta';
+  
+  final String bigText = '$title\n'
+      'Mua: $buyPriceStr $buyDelta\n'
+      'Bán: $sellPriceStr $sellDelta';
+
   // Create notification
-  const androidDetails = AndroidNotificationDetails(
+  final androidDetails = AndroidNotificationDetails(
     'gold_price_channel',
     'Giá Vàng',
     channelDescription: 'Thông báo khi giá vàng thay đổi',
     importance: Importance.high,
     priority: Priority.high,
-    icon: '@mipmap/ic_launcher',
+    icon: '@mipmap/launcher_icon',
+    styleInformation: BigTextStyleInformation(
+      bigText,
+      contentTitle: title,
+      summaryText: 'Cập nhật giá vàng',
+    ),
   );
   
-  const notificationDetails = NotificationDetails(android: androidDetails);
+  final notificationDetails = NotificationDetails(android: androidDetails);
   
   await flutterLocalNotificationsPlugin.show(
     999, // notification ID
-    'Vàng Nhẫn Trơn 9999 $arrow$diffStr',
-    'Giá bán: $newPriceStr đ',
+    title,
+    body,
     notificationDetails,
   );
   
-  debugPrint('[BackgroundService] Notification sent: $newPriceStr ($arrow$diffStr)');
+  debugPrint('[BackgroundService] Notification sent: $title');
 }
 
 /// Format price to readable string

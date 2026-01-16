@@ -61,7 +61,22 @@ class SalaryService {
     required int year,
     required int month,
   }) {
-    if (start == null || end == null) return false;
+    return getBusinessTripDaysInMonth(
+      start: start,
+      end: end,
+      year: year,
+      month: month,
+    ) > 0;
+  }
+
+  /// Calculates total days spent on business trip within a specific month
+  int getBusinessTripDaysInMonth({
+    required DateTime? start,
+    required DateTime? end,
+    required int year,
+    required int month,
+  }) {
+    if (start == null || end == null) return 0;
     
     final monthStart = DateTime(year, month, 1);
     final monthEnd = DateTime(year, month + 1, 0);
@@ -69,7 +84,8 @@ class SalaryService {
     final overlapStart = start.isAfter(monthStart) ? start : monthStart;
     final overlapEnd = end.isBefore(monthEnd) ? end : monthEnd;
 
-    return !overlapStart.isAfter(overlapEnd);
+    if (overlapStart.isAfter(overlapEnd)) return 0;
+    return overlapEnd.difference(overlapStart).inDays + 1;
   }
 
   /// Calculates final net salary for a month
@@ -79,12 +95,13 @@ class SalaryService {
     required double diligenceAllowance,
     required double totalOTPay,
     required double businessTripPay,
-    required bool isOnTrip,
+    required int tripDays,
     required double bhxhDeduction,
     required double advancePayment,
   }) {
-    double internetPay = isOnTrip ? AppConstants.defaultInternetPay : 0.0;
-    double gasolinePay = isOnTrip ? 0.0 : AppConstants.defaultGasolinePay;
+    // Only add internet pay if business trip days >= 14
+    double internetPay = tripDays >= 14 ? AppConstants.defaultInternetPay : 0.0;
+    double gasolinePay = tripDays > 0 ? 0.0 : AppConstants.defaultGasolinePay;
     
     double totalGross = monthlySalary + totalOTPay + gasolinePay + businessTripPay + internetPay;
     double totalDeductions = bhxhDeduction + advancePayment;

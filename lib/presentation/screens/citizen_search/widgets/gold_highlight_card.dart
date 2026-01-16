@@ -59,7 +59,7 @@ class GoldHighlightCard extends StatelessWidget {
                       value: provider.selectedHistoryKey,
                       dropdownColor: AppColors.accent,
                       icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.white70),
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
                       onChanged: (String? newValue) {
                         if (newValue != null) {
                           provider.selectedHistoryKey = newValue;
@@ -70,7 +70,7 @@ class GoldHighlightCard extends StatelessWidget {
                   ),
                   Text(
                     '${NumberFormat('#,###').format(sellPrice)} đ',
-                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5),
                   ),
                 ],
               ),
@@ -174,10 +174,28 @@ class GoldHighlightCard extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 22,
-                interval: max(1, (provider.priceHistory.length / 5).floor().toDouble()),
+                interval: 1,
                 getTitlesWidget: (value, meta) {
-                  if (value.toInt() >= 0 && value.toInt() < provider.priceHistory.length) {
-                    final dateStr = provider.priceHistory[value.toInt()]['date'];
+                  final index = value.toInt();
+                  if (index >= 0 && index < provider.priceHistory.length) {
+                    final currentEntry = provider.priceHistory[index];
+                    final dateStr = currentEntry['date'];
+                    
+                    // Logic: Only show the label for the LAST point of each day
+                    bool shouldShow = false;
+                    if (index == provider.priceHistory.length - 1) {
+                      shouldShow = true;
+                    } else {
+                      final nextEntry = provider.priceHistory[index + 1];
+                      final currentDate = dateStr.split(' ')[0];
+                      final nextDate = nextEntry['date'].split(' ')[0];
+                      if (currentDate != nextDate) {
+                        shouldShow = true;
+                      }
+                    }
+
+                    if (!shouldShow) return const SizedBox();
+
                     try {
                       final date = DateFormat('yyyy-MM-dd HH:mm').parse(dateStr);
                       return Padding(
@@ -187,7 +205,7 @@ class GoldHighlightCard extends StatelessWidget {
                     } catch (_) {
                       return Padding(
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(dateStr.split(' ')[0].substring(5), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10, fontWeight: FontWeight.w600)),
+                        child: Text(dateStr.split(' ')[0].substring(5).replaceAll('-', '/'), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10, fontWeight: FontWeight.w600)),
                       );
                     }
                   }

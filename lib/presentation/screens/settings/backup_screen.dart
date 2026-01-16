@@ -79,7 +79,7 @@ class _BackupScreenState extends State<BackupScreen> {
     try {
       final results = await _backupService.backupAll();
       if (results['database'] == true) {
-        _showSuccess(results['sheets_keys'] == true ? 'Sao lưu toàn bộ thành công!' : 'Sao lưu database thành công (Keys thất bại)');
+        _showSuccess('Sao lưu thành công!');
         await _loadBackupData();
       } else {
         _showError('Sao lưu thất bại');
@@ -128,7 +128,7 @@ class _BackupScreenState extends State<BackupScreen> {
         if (!mounted) return;
         await _loadBackupData();
         if (!mounted) return;
-        _showSuccess(results['sheets_keys'] == true ? 'Khôi phục toàn bộ thành công!' : 'Khôi phục database thành công (Keys thất bại)');
+        _showSuccess('Khôi phục thành công!');
       } else {
         _showError('Khôi phục thất bại');
       }

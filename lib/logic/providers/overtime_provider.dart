@@ -281,7 +281,16 @@ class OvertimeProvider with ChangeNotifier {
   }
 
   bool isOnBusinessTripInMonth(int year, int month) {
-    return _salaryService.isOnBusinessTripInMonth(
+    return _salaryService.getBusinessTripDaysInMonth(
+      start: _businessTripStart,
+      end: _businessTripEnd,
+      year: year,
+      month: month,
+    ) > 0;
+  }
+
+  int calculateBusinessTripDaysInMonth(int year, int month) {
+    return _salaryService.getBusinessTripDaysInMonth(
       start: _businessTripStart,
       end: _businessTripEnd,
       year: year,
@@ -323,7 +332,7 @@ class OvertimeProvider with ChangeNotifier {
       diligenceAllowance: _diligenceAllowance,
       totalOTPay: totalOT,
       businessTripPay: calculateBusinessTripPayForMonth(year, month),
-      isOnTrip: isOnBusinessTripInMonth(year, month),
+      tripDays: calculateBusinessTripDaysInMonth(year, month),
       bhxhDeduction: _bhxhDeduction,
       advancePayment: _advancePayment,
     );
@@ -346,9 +355,9 @@ class OvertimeProvider with ChangeNotifier {
 
     double baseSalary = (_monthlySalary ?? 0) - _responsibilityAllowance - _diligenceAllowance;
     double businessTripPay = calculateBusinessTripPayForMonth(year, month);
-    bool isOnTrip = isOnBusinessTripInMonth(year, month);
-    double internetPay = isOnTrip ? AppConstants.defaultInternetPay : 0.0;
-    double gasolinePay = isOnTrip ? 0.0 : AppConstants.defaultGasolinePay;
+    int tripDays = calculateBusinessTripDaysInMonth(year, month);
+    double internetPay = tripDays >= 14 ? AppConstants.defaultInternetPay : 0.0;
+    double gasolinePay = tripDays > 0 ? 0.0 : AppConstants.defaultGasolinePay;
     
     return baseSalary + _responsibilityAllowance + _diligenceAllowance + totalOT + gasolinePay + businessTripPay + internetPay;
   }

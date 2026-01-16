@@ -48,7 +48,7 @@ class GoldPriceList extends StatelessWidget {
           title,
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
             letterSpacing: 0.3,
           ),
@@ -93,7 +93,7 @@ class GoldPriceList extends StatelessWidget {
                 Text(
                   item['type'] ?? '',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                     fontSize: 14,
                     color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                   ),

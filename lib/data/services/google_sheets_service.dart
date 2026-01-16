@@ -28,10 +28,6 @@ class GoogleSheetsService {
   
   // Cache access token
   String? _accessToken;
-  DateTime? _accessTokenExpiry;
-  String? _refreshToken;
-  String? _clientId;
-  String? _clientSecret;
   
   // Google Sign-In account (for Plan A)
   GoogleSignInAccount? _currentUser;
@@ -74,58 +70,30 @@ class GoogleSheetsService {
     }
   }
 
-  /// Lấy access token từ SharedPreferences hoặc tự động refresh nếu cần
+  /// Lấy access token từ Google Sign-In
   Future<String?> getAccessToken() async {
     if (_accessToken != null) {
-      // if we have expiry, ensure it's not about to expire
-      if (_accessTokenExpiry != null) {
-        final now = DateTime.now().toUtc();
-        if (_accessTokenExpiry!.isAfter(now.add(const Duration(seconds: 60)))) {
-          return _accessToken;
-        }
-      } else {
-        return _accessToken;
-      }
+      return _accessToken;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    _accessToken = prefs.getString('google_sheets_access_token');
-    final expiryStr = prefs.getString('google_sheets_token_expiry');
-    if (expiryStr != null) {
-      try {
-        _accessTokenExpiry = DateTime.parse(expiryStr).toUtc();
-      } catch (_) {}
-    }
-    _refreshToken = prefs.getString('google_sheets_refresh_token');
-    _clientId = prefs.getString('google_sheets_client_id');
-    _clientSecret = prefs.getString('google_sheets_client_secret');
-
-    // If token exists and not expired
-    if (_accessToken != null && _accessTokenExpiry != null) {
-      final now = DateTime.now().toUtc();
-      if (_accessTokenExpiry!.isAfter(now.add(const Duration(seconds: 60)))) {
-        return _accessToken;
-      }
-    }
-
-    // Try to refresh using refresh token (Plan B)
-    if (_refreshToken != null && _refreshToken!.isNotEmpty) {
-      debugPrint('[GoogleSheets] Attempting token refresh...');
-      final ok = await refreshAccessToken();
-      if (ok) return _accessToken;
-      debugPrint('[GoogleSheets] Refresh failed, will try Google Sign-In silently');
-    }
-
-    // Try to get token from Google Sign-In silently (Plan A)
+    // Try to get token from Google Sign-In silently
     final signInToken = await _getTokenFromGoogleSignIn(silently: true);
     if (signInToken != null) {
+      _accessToken = signInToken;
       return signInToken;
     }
 
-    return _accessToken;
+    return null;
   }
 
-  /// Đăng nhập Google và lấy token cho Sheets API (Plan A)
+  /// Tự động refresh token bằng cách đăng nhập im lặng
+  Future<bool> refreshAccessToken() async {
+    _accessToken = null;
+    final token = await getAccessToken();
+    return token != null;
+  }
+
+  /// Đăng nhập Google và lấy token cho Sheets API
   Future<String?> signInWithGoogle() async {
     try {
       debugPrint('[GoogleSheets] Starting Google Sign-In...');
@@ -140,8 +108,7 @@ class GoogleSheetsService {
       final token = auth.accessToken;
       
       if (token != null) {
-        // Save to cache (token từ Google Sign-In thường có thời hạn ~1h)
-        await setAccessToken(token, expiresInSeconds: 3600);
+        _accessToken = token;
         debugPrint('[GoogleSheets] Sign-in successful, token obtained');
         return token;
       }
@@ -172,7 +139,7 @@ class GoogleSheetsService {
       final token = auth.accessToken;
       
       if (token != null) {
-        await setAccessToken(token, expiresInSeconds: 3600);
+        _accessToken = token;
         debugPrint('[GoogleSheets] Got token from Google Sign-In');
         return token;
       }
@@ -193,86 +160,18 @@ class GoogleSheetsService {
   Future<void> signOutGoogle() async {
     await _googleSignIn.signOut();
     _currentUser = null;
+    _accessToken = null;
     debugPrint('[GoogleSheets] Signed out from Google');
   }
 
   /// Lấy email của user đã đăng nhập
   String? get currentUserEmail => _currentUser?.email;
 
-
-  /// Lưu access token
-  Future<void> setAccessToken(String token, {int? expiresInSeconds}) async {
-    _accessToken = token;
+  /// Xóa access token cache và preference
+  Future<void> clearAccessToken() async {
+    _accessToken = null;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('google_sheets_access_token', token);
-    if (expiresInSeconds != null) {
-      final expiry = DateTime.now().toUtc().add(Duration(seconds: expiresInSeconds));
-      _accessTokenExpiry = expiry;
-      await prefs.setString('google_sheets_token_expiry', expiry.toIso8601String());
-    } else {
-      await prefs.remove('google_sheets_token_expiry');
-    }
-  }
-
-  Future<void> setRefreshToken(String refreshToken) async {
-    _refreshToken = refreshToken;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('google_sheets_refresh_token', refreshToken);
-  }
-
-  Future<void> setClientId(String clientId) async {
-    _clientId = clientId;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('google_sheets_client_id', clientId);
-  }
-
-  Future<void> setClientSecret(String clientSecret) async {
-    _clientSecret = clientSecret;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('google_sheets_client_secret', clientSecret);
-  }
-
-  /// Refresh access token using stored refresh token
-  Future<bool> refreshAccessToken() async {
-    if (_refreshToken == null) {
-      debugPrint('No refresh token available');
-      return false;
-    }
-    try {
-      final body = <String, String>{
-        'grant_type': 'refresh_token',
-        'refresh_token': _refreshToken!,
-      };
-      if (_clientId != null && _clientId!.isNotEmpty) {
-        body['client_id'] = _clientId!;
-      }
-      if (_clientSecret != null && _clientSecret!.isNotEmpty) {
-        body['client_secret'] = _clientSecret!;
-      }
-      final resp = await http.post(
-        Uri.parse('https://oauth2.googleapis.com/token'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: body,
-      );
-      if (resp.statusCode != 200) {
-        debugPrint('Refresh failed: ${resp.statusCode} - ${resp.body}');
-        return false;
-      }
-      final data = json.decode(resp.body);
-      final access = data['access_token'] as String?;
-      final expiresIn = (data['expires_in'] as num?)?.toInt();
-      final newRefresh = data['refresh_token'] as String?;
-      if (access == null) return false;
-      await setAccessToken(access, expiresInSeconds: expiresIn ?? 3600);
-      if (newRefresh != null && newRefresh.isNotEmpty) {
-        await setRefreshToken(newRefresh);
-      }
-      debugPrint('Access token refreshed');
-      return true;
-    } catch (e) {
-      debugPrint('Error refreshing token: $e');
-      return false;
-    }
+    await prefs.remove('google_sheets_access_token');
   }
   
   /// Tìm hoặc tạo sheet theo tên project
@@ -792,147 +691,4 @@ class GoogleSheetsService {
     }
   }
 
-  /// Xóa access token
-  
-  /// Xóa access token
-  Future<void> clearAccessToken() async {
-    _accessToken = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('google_sheets_access_token');
-  }
-
-  /// Encrypt data using simple XOR (for demo - use AES in production)
-  String _encryptData(String data) {
-    const key = 'NoteOverTimeSheetsKey2024'; // Should be more secure in production
-    final keyBytes = utf8.encode(key);
-    final dataBytes = utf8.encode(data);
-    final encrypted = <int>[];
-
-    for (int i = 0; i < dataBytes.length; i++) {
-      encrypted.add(dataBytes[i] ^ keyBytes[i % keyBytes.length]);
-    }
-
-    return base64.encode(encrypted);
-  }
-
-  /// Decrypt data using simple XOR
-  String _decryptData(String encryptedData) {
-    try {
-      const key = 'NoteOverTimeSheetsKey2024';
-      final keyBytes = utf8.encode(key);
-      final encryptedBytes = base64.decode(encryptedData);
-      final decrypted = <int>[];
-
-      for (int i = 0; i < encryptedBytes.length; i++) {
-        decrypted.add(encryptedBytes[i] ^ keyBytes[i % keyBytes.length]);
-      }
-
-      return utf8.decode(decrypted);
-    } catch (e) {
-      debugPrint('Error decrypting data: $e');
-      return '';
-    }
-  }
-
-  /// Export Google Sheets keys to encrypted JSON string
-  Future<String?> exportKeys() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final keys = {
-        'access_token': prefs.getString('google_sheets_access_token') ?? '',
-        'refresh_token': prefs.getString('google_sheets_refresh_token') ?? '',
-        'client_id': prefs.getString('google_sheets_client_id') ?? '',
-        'client_secret': prefs.getString('google_sheets_client_secret') ?? '',
-        'token_expiry': prefs.getString('google_sheets_token_expiry') ?? '',
-        'exported_at': DateTime.now().toIso8601String(),
-        'version': '1.0',
-      };
-
-      // Check if we have any keys to export
-      final hasKeys = keys.values.any((value) => value.isNotEmpty);
-      if (!hasKeys) {
-        return null; // No keys to export
-      }
-
-      final jsonString = json.encode(keys);
-      return _encryptData(jsonString);
-    } catch (e) {
-      debugPrint('Error exporting keys: $e');
-      return null;
-    }
-  }
-
-  /// Import Google Sheets keys from encrypted JSON string
-  Future<bool> importKeys(String encryptedKeys) async {
-    try {
-      final decryptedJson = _decryptData(encryptedKeys);
-      if (decryptedJson.isEmpty) {
-        return false;
-      }
-
-      final keys = json.decode(decryptedJson) as Map<String, dynamic>;
-
-      // Validate version
-      final version = keys['version'] as String?;
-      if (version != '1.0') {
-        debugPrint('Unsupported key version: $version');
-        return false;
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-
-      // Import keys
-      if (keys['access_token']?.isNotEmpty == true) {
-        await prefs.setString('google_sheets_access_token', keys['access_token']);
-        _accessToken = keys['access_token'];
-      }
-
-      if (keys['refresh_token']?.isNotEmpty == true) {
-        await prefs.setString('google_sheets_refresh_token', keys['refresh_token']);
-        _refreshToken = keys['refresh_token'];
-      }
-
-      if (keys['client_id']?.isNotEmpty == true) {
-        await prefs.setString('google_sheets_client_id', keys['client_id']);
-        _clientId = keys['client_id'];
-      }
-
-      if (keys['client_secret']?.isNotEmpty == true) {
-        await prefs.setString('google_sheets_client_secret', keys['client_secret']);
-        _clientSecret = keys['client_secret'];
-      }
-
-      if (keys['token_expiry']?.isNotEmpty == true) {
-        await prefs.setString('google_sheets_token_expiry', keys['token_expiry']);
-        try {
-          _accessTokenExpiry = DateTime.parse(keys['token_expiry']);
-        } catch (e) {
-          debugPrint('Error parsing token expiry: $e');
-        }
-      }
-
-      debugPrint('Successfully imported Google Sheets keys');
-      return true;
-    } catch (e) {
-      debugPrint('Error importing keys: $e');
-      return false;
-    }
-  }
-
-  /// Check if Google Sheets keys are configured
-  Future<bool> hasKeys() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString('google_sheets_access_token');
-      final refreshToken = prefs.getString('google_sheets_refresh_token');
-      final clientId = prefs.getString('google_sheets_client_id');
-
-      return (accessToken?.isNotEmpty == true) ||
-             (refreshToken?.isNotEmpty == true) ||
-             (clientId?.isNotEmpty == true);
-    } catch (e) {
-      return false;
-    }
-  }
 }

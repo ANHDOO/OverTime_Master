@@ -78,7 +78,7 @@ class _ExchangeRateDetailScreenState extends State<ExchangeRateDetailScreen> {
             ),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+              Text(item['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
               const SizedBox(height: 2),
               Text('Tỷ giá so với VND', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
             ])),

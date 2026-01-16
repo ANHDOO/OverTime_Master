@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import '../../data/models/gold_investment.dart';
 import '../../data/services/info_service.dart';
@@ -96,6 +97,13 @@ class GoldProvider with ChangeNotifier {
       if (nhanTronData.isNotEmpty) {
         final currentBuy = _parsePrice(nhanTronData['buy']);
         final currentSell = _parsePrice(nhanTronData['sell']);
+        
+        // Update background service cache to prevent redundant notifications
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('last_gold_sell_price', currentSell);
+        await prefs.setDouble('last_gold_buy_price', currentBuy);
+        debugPrint('[GoldProvider] Synced latest prices to background cache: Sell=$currentSell, Buy=$currentBuy');
+
         final updated = await _storageService.getGoldPriceHistory(nhanTronKey);
         if (updated.isEmpty || updated.last['buy_price'] != currentBuy || updated.last['sell_price'] != currentSell) {
           await _storageService.insertGoldPriceHistory({'date': now, 'buy_price': currentBuy, 'sell_price': currentSell, 'gold_type': nhanTronKey});

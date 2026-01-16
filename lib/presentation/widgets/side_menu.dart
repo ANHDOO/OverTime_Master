@@ -265,9 +265,9 @@ class _SideMenuState extends State<SideMenu> {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              'OT Master',
+                              'Sổ tay công việc',
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w900,
                                 color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                               ),
                             ),
@@ -538,7 +538,7 @@ class _SideMenuState extends State<SideMenu> {
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                       fontSize: 14,
                       color: selected 
                           ? gradientColors[0]
@@ -604,7 +604,7 @@ class _SideMenuState extends State<SideMenu> {
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       fontSize: 14,
                       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                     ),

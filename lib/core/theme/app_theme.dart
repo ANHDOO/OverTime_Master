@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../logic/providers/font_provider.dart';
 
 /// 🎨 App Color System - Light & Dark Mode
 class AppColors {
@@ -239,41 +240,79 @@ class AppTheme {
   AppTheme._();
 
   /// Tạo light theme với font tùy chọn
-  static ThemeData lightWithFont(String? fontFamily) => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          surface: AppColors.lightSurface,
+  static ThemeData lightWithFont(FontOption font) {
+    final baseTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        primary: AppColors.primary,
+        surface: AppColors.lightSurface,
+      ),
+      fontFamily: font.id == 'system' ? null : (font.isGoogleFont ? null : (font.fontFamily ?? 'UTMHelvetIns')),
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: AppColors.lightTextPrimary,
+          fontFamily: font.id == 'system' ? null : (font.isGoogleFont ? font.fontFamily : font.fontFamily ?? 'UTMHelvetIns'),
         ),
-        fontFamily: fontFamily ?? 'UTMHelvetIns',
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-      );
+      ),
+    );
+
+    if (font.isGoogleFont && font.fontFamily != null) {
+      try {
+        return baseTheme.copyWith(
+          textTheme: GoogleFonts.getTextTheme(font.fontFamily!, baseTheme.textTheme),
+        );
+      } catch (_) {
+        return baseTheme;
+      }
+    }
+    return baseTheme;
+  }
 
   /// Tạo dark theme với font tùy chọn
-  static ThemeData darkWithFont(String? fontFamily) => ThemeData(
-        useMaterial3: true,
+  static ThemeData darkWithFont(FontOption font) {
+    final baseTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.dark,
-          primary: AppColors.primaryLight,
-          surface: AppColors.darkSurface,
+        primary: AppColors.primaryLight,
+        surface: AppColors.darkSurface,
+      ),
+      fontFamily: font.id == 'system' ? null : (font.isGoogleFont ? null : (font.fontFamily ?? 'UTMHelvetIns')),
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: AppColors.darkTextPrimary,
+          fontFamily: font.id == 'system' ? null : (font.isGoogleFont ? font.fontFamily : font.fontFamily ?? 'UTMHelvetIns'),
         ),
-        fontFamily: fontFamily ?? 'UTMHelvetIns',
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-      );
+      ),
+    );
+
+    if (font.isGoogleFont && font.fontFamily != null) {
+      try {
+        return baseTheme.copyWith(
+          textTheme: GoogleFonts.getTextTheme(font.fontFamily!, baseTheme.textTheme),
+        );
+      } catch (_) {
+        return baseTheme;
+      }
+    }
+    return baseTheme;
+  }
 
   // Legacy getters for backwards compatibility
-  static ThemeData get light => lightWithFont(null);
-  static ThemeData get dark => darkWithFont(null);
+  static ThemeData get light => lightWithFont(FontProvider.availableFonts.first);
+  static ThemeData get dark => darkWithFont(FontProvider.availableFonts.first);
 }

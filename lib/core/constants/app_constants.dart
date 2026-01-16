@@ -25,5 +25,5 @@ class AppConstants {
   static const double debtBaseInterestRate = 0.015; // 1.5%
   static const double debtDailyInterestRate = 0.001; // 0.1% per day
   static const int debtInterestStartDay = 5;
-  static const int debtDueDateDay = 20;
+  static const int debtDueDateDay = 5;
 }

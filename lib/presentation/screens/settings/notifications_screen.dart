@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/background_service.dart' as bg;
 import '../../widgets/custom_time_picker.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -13,8 +14,10 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isEnabled = true;
+  bool _goldEnabled = true;
   int _selectedHour = 22;
   int _selectedMinute = 0;
+  bool _isScraping = false;
 
   @override
   void initState() {
@@ -26,6 +29,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isEnabled = prefs.getBool('notification_enabled') ?? true;
+      _goldEnabled = prefs.getBool('gold_notification_enabled') ?? true;
       _selectedHour = prefs.getInt('notification_hour') ?? 22;
       _selectedMinute = prefs.getInt('notification_minute') ?? 0;
     });
@@ -40,43 +44,60 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final service = NotificationService();
       await service.scheduleDailyNotification();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.notifications_active_rounded, color: Colors.white),
-                const SizedBox(width: 12),
-                Text('Đã bật nhắc nhở lúc $_selectedHour:${_selectedMinute.toString().padLeft(2, '0')} 💪'),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-          ),
-        );
+        _showSnackBar('Đã bật nhắc nhở lúc $_selectedHour:${_selectedMinute.toString().padLeft(2, '0')} 💪', AppColors.success);
       }
     } else {
       await NotificationService().cancelAll();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.notifications_off_rounded, color: Colors.white),
-                const SizedBox(width: 12),
-                const Text('Đã tắt nhắc nhở hằng ngày'),
-              ],
-            ),
-            backgroundColor: AppColors.danger,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-          ),
-        );
+        _showSnackBar('Đã tắt nhắc nhở hằng ngày', AppColors.danger);
       }
     }
   }
 
+  Future<void> _toggleGoldNotification(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('gold_notification_enabled', value);
+    setState(() => _goldEnabled = value);
+    if (mounted) {
+      _showSnackBar(value ? 'Đã bật thông báo giá vàng 📈' : 'Đã tắt thông báo giá vàng 📉', value ? AppColors.success : AppColors.danger);
+    }
+  }
+
+  void _showSnackBar(String message, Color bgColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: bgColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+      ),
+    );
+  }
+
+  Future<void> _triggerGoldCheck() async {
+    setState(() => _isScraping = true);
+    
+    try {
+      if (mounted) {
+        _showSnackBar('Đang kết nối tới server Mão Thiệt... 🔍', AppColors.info);
+      }
+      
+      // CALL DIRECTLY for immediate visual feedback in UI
+      await bg.checkGoldPriceAndNotify(forceNotify: true);
+      
+      if (mounted) {
+        _showSnackBar('Đã gửi thông báo thành công! 🔔', AppColors.success);
+      }
+    } catch (e) {
+      debugPrint('Error triggering gold check: $e');
+      if (mounted) _showSnackBar('Lỗi: $e', AppColors.danger);
+    } finally {
+      if (mounted) setState(() => _isScraping = false);
+    }
+  }
+
   Future<void> _pickTime() async {
+    // ... (rest of the method stays same)
     final picked = await CustomTimePicker.show(
       context,
       initialTime: TimeOfDay(hour: _selectedHour, minute: _selectedMinute),
@@ -186,8 +207,115 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 24),
             
             _buildWarningCard(isDark),
+            const SizedBox(height: 32),
+            
+            _buildSectionHeader('Thị trường vàng', isDark),
+            const SizedBox(height: 12),
+            _buildGoldNotificationToggle(isDark),
+            const SizedBox(height: 12),
+            if (_goldEnabled) _buildGoldCheckButton(isDark),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildGoldNotificationToggle(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderLg,
+        boxShadow: isDark ? null : AppShadows.cardLight,
+        border: Border.all(
+          color: _goldEnabled ? AppColors.success.withValues(alpha: 0.3) : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _goldEnabled ? AppColors.success.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                borderRadius: AppRadius.borderMd,
+              ),
+              child: Icon(
+                Icons.trending_up_rounded,
+                color: _goldEnabled ? AppColors.success : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Thông báo biến động giá vàng',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Cào dữ liệu 24/7 từ Mão Thiệt',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: _goldEnabled,
+              onChanged: _toggleGoldNotification,
+              activeColor: AppColors.success,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoldCheckButton(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
+        borderRadius: AppRadius.borderMd,
+        boxShadow: isDark ? null : AppShadows.cardLight,
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isScraping ? null : _triggerGoldCheck,
+          borderRadius: AppRadius.borderMd,
+          child: Center(
+            child: _isScraping 
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.success))
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.search_rounded, color: AppColors.success, size: 22),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Kiểm tra giá vàng ngay',
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+        ),
       ),
     );
   }

@@ -72,8 +72,8 @@ class OvertimeApp extends StatelessWidget {
                 ),
         );
 
-        // Lấy font family từ FontProvider
-        final fontFamily = fontProvider.currentFontFamily;
+        // Lấy font option từ FontProvider
+        final selectedFont = fontProvider.selectedFont;
 
         return MaterialApp(
           navigatorKey: navigatorKey,
@@ -90,8 +90,8 @@ class OvertimeApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           // 🎨 Theme với font động từ FontProvider
-          theme: AppTheme.lightWithFont(fontFamily),
-          darkTheme: AppTheme.darkWithFont(fontFamily),
+          theme: AppTheme.lightWithFont(selectedFont),
+          darkTheme: AppTheme.darkWithFont(selectedFont),
           themeMode: themeProvider.themeMode,
           home: const SplashScreen(),
         );

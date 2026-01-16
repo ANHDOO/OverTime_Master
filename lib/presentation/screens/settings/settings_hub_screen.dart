@@ -327,12 +327,21 @@ class SettingsHubScreen extends StatelessWidget {
     
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
+      builder: (context) => Container(
+        padding: EdgeInsets.only(
+          left: 24, 
+          right: 24, 
+          top: 24, 
+          bottom: MediaQuery.of(context).padding.bottom + 24
+        ),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,25 +355,32 @@ class SettingsHubScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            ...FontProvider.availableFonts.map((font) => _buildFontOption(
-              context,
-              font: font,
-              isSelected: fontProvider.selectedFontId == font.id,
-              isDark: isDark,
-              onTap: () {
-                fontProvider.setFont(font.id);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Đã đổi sang font ${font.name}. Khởi động lại app để áp dụng hoàn toàn.'),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              },
-            )),
-            const SizedBox(height: 16),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    ...FontProvider.availableFonts.map((font) => _buildFontOption(
+                      context,
+                      font: font,
+                      isSelected: fontProvider.selectedFontId == font.id,
+                      isDark: isDark,
+                      onTap: () {
+                        fontProvider.setFont(font.id);
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Đã đổi sang font ${font.name}. Khởi động lại app để áp dụng hoàn toàn.'),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      },
+                    )),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

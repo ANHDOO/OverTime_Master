@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
+import '../../core/theme/app_theme.dart';
 
 class SmartMoneyInput extends StatefulWidget {
   final TextEditingController controller;
@@ -198,8 +199,8 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
       children: [
         TextField(
           controller: widget.controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+          keyboardType: const TextInputType.numberWithOptions(decimal: false, signed: false),
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: widget.style ?? TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
@@ -213,34 +214,38 @@ class _SmartMoneyInputState extends State<SmartMoneyInput> {
         ),
 
         // Suggestions shown BELOW the TextField as pill buttons
-        if (displaySuggestions.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: displaySuggestions.map((value) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    ),
-                    onPressed: () => _selectSuggestion(value),
-                    child: Text(
-                      _formatCurrencyLabel(value),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 48, // Fixed height to prevent dialog jump
+          child: displaySuggestions.isEmpty 
+            ? const SizedBox() // Empty space buffer
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: displaySuggestions.map((value) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          foregroundColor: AppColors.primary,
+                          elevation: 0,
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                        onPressed: () => _selectSuggestion(value),
+                        child: Text(
+                          _formatCurrencyLabel(value),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+        ),
       ],
     );
   }

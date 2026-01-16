@@ -65,8 +65,8 @@ class DebtEntry {
     // Reference date for calculation: if paid, use paidAt; otherwise use now.
     final referenceDate = isPaid ? (paidAt ?? DateTime.now()) : DateTime.now();
     
-    final dueDate = DateTime(month.year, month.month, AppConstants.debtDueDateDay);
-    final interestStartDate = DateTime(month.year, month.month, AppConstants.debtInterestStartDay);
+    final dueDate = DateTime(month.year, month.month + 1, AppConstants.debtDueDateDay);
+    final interestStartDate = DateTime(month.year, month.month + 1, AppConstants.debtInterestStartDay);
 
     double baseInterest = 0;
     double extraInterest = 0;

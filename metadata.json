@@ -1,8 +1,8 @@
 {
-  "versionName": "1.4.5",
-  "versionCode": 62,
-  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.4.5/overtime_1.4.5.apk",
-  "changelog": "# Phiên bản 1.4.5\n\n## Sửa lỗi\n\n### Font chữ động\n- **Sửa lỗi font không thay đổi**: Khắc phục lỗi chọn font trong Settings Hub nhưng không áp dụng được dù đã restart app.\n- **Cơ chế mới**: Font chữ giờ được áp dụng động thông qua `FontProvider`, không còn hardcode trong theme.\n\n### Giao diện\n- **Gộp toggle sáng/tối**: Xóa bỏ toggle chế độ sáng/tối trùng lặp trong Side Menu, chỉ giữ lại trong Settings Hub.\n- **Code cleanup**: Loại bỏ các widget và import không sử dụng để giảm kích thước app.\n",
-  "publishedAt": "2026-01-16T17:52:38.938419Z",
-  "fileSize": "23.4MB"
+  "versionName": "1.4.6",
+  "versionCode": 63,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.4.6/overtime_1.4.6.apk",
+  "changelog": "# Nhật ký thay đổi v1.4.6\n\n### Tính năng mới & Cải tiến\n- **Thông báo giá vàng 24/7**: Hệ thống tự động theo dõi và thông báo biến động giá vàng từ Mão Thiệt đã hoạt động ổn định.\n- **Giao diện thông báo mới**: Thiết kế lại thông báo giá vàng theo bố cục 3 dòng rõ ràng, hiển thị mức tăng/giảm chi tiết cho cả giá **Mua** và giá **Bán**.\n- **Nút kiểm tra nhanh**: Thêm nút \"Kiểm tra giá vàng ngay\" trong phần Cài đặt Nhắc nhở để nhận thông báo tức thì.\n- **Bôi đậm giao diện**: Cập nhật tiêu đề AppBar và các tiêu đề chính (Quỹ Dự Án, OverTime) sang định dạng chữ đậm (Black weight) để tăng tính thẩm mỹ và chuyên nghiệp.\n- **Biểu đồ giá vàng**: Tối ưu hóa hiển thị nhãn ngày trên trục X, loại bỏ trùng lặp.\n\n### Sửa lỗi & Dọn dẹp\n- **Dọn dẹp Google Sheets**: Loại bỏ các cài đặt thủ công thừa (Client ID, Secret, Keys) để quy trình sao lưu đơn giản và bảo mật hơn qua Google Sign-In.\n- **Fix Font chữ**: Sửa lỗi font chữ bị reset về mặc định sau khi khởi động lại ứng dụng.\n- **Đồng bộ giá**: Đảm bảo dữ liệu giá vàng luôn đồng nhất giữa màn hình chính và dịch vụ chạy ngầm.\n",
+  "publishedAt": "2026-01-16T23:01:20.819160Z",
+  "fileSize": "26.2MB"
 }
