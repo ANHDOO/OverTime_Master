@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/overtime_provider.dart';
+import 'providers/debt_provider.dart';
+import 'providers/cash_transaction_provider.dart';
+import 'providers/citizen_profile_provider.dart';
+import 'providers/gold_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
@@ -30,6 +34,10 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => OvertimeProvider()..fetchEntries()),
+        ChangeNotifierProvider(create: (_) => DebtProvider()..fetchDebtEntries()),
+        ChangeNotifierProvider(create: (_) => CashTransactionProvider()..fetchCashTransactions()),
+        ChangeNotifierProvider(create: (_) => CitizenProfileProvider()..fetchCitizenProfiles()),
+        ChangeNotifierProvider(create: (_) => GoldProvider()..fetchGoldData()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: OvertimeApp(navigatorKey: navigatorKey),

@@ -54,3 +54,4 @@ tool/temp_*.*
 *.rar
 tool/.github_token
 doctor.txt
+.agent

@@ -4,7 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/citizen_profile.dart';
-import '../../providers/overtime_provider.dart';
+import '../../providers/citizen_profile_provider.dart';
 import '../../services/citizen_lookup_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -240,7 +240,7 @@ class _BhxhSearchScreenState extends State<BhxhSearchScreen> {
         const SizedBox(height: 12),
         _buildTextField(_bhxhIdController, 'Mã số BHXH', Icons.numbers_rounded, isDark),
         const SizedBox(height: 12),
-        Consumer<OvertimeProvider>(
+        Consumer<CitizenProfileProvider>(
           builder: (context, provider, _) {
             final profiles = provider.citizenProfiles;
             if (profiles.isEmpty) return const SizedBox.shrink();

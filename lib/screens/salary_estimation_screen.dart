@@ -52,7 +52,7 @@ class _SalaryEstimationScreenState extends State<SalaryEstimationScreen> {
     double section3Total = provider.bhxhDeduction + provider.advancePayment; // CÁC KHOẢN TRỪ
 
     // Final Salary = (1+2) - 3
-    double finalSalary = totalGrossSalary - section3Total;
+    double finalSalary = provider.calculateFinalSalaryForMonth(_selectedMonth.year, _selectedMonth.month);
 
     return Scaffold(
       appBar: AppBar(

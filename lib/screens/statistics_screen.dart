@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../providers/overtime_provider.dart';
+import '../providers/cash_transaction_provider.dart';
 import '../models/overtime_entry.dart';
 import '../models/cash_transaction.dart';
 import '../services/excel_service.dart';
@@ -139,7 +140,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
   }
 
   void _showCashFlowExportDialog(BuildContext context) {
-    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final provider = Provider.of<CashTransactionProvider>(context, listen: false);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     final projects = provider.cashTransactions.map((t) => t.project).toSet().toList()..sort();
@@ -275,13 +276,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
           ],
         ),
       ),
-      body: Consumer<OvertimeProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
+      body: Consumer2<OvertimeProvider, CashTransactionProvider>(
+        builder: (context, otProvider, cashProvider, child) {
+          if (otProvider.isLoading || cashProvider.isLoading) {
             return Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
 
-          final projectOptions = _getProjectOptions(provider.cashTransactions);
+          final projectOptions = _getProjectOptions(cashProvider.cashTransactions);
 
           return Column(
             children: [
@@ -290,8 +291,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildOTStatistics(provider, currencyFormat, isDark),
-                    _buildCashFlowStatistics(provider, currencyFormat, isDark),
+                    _buildOTStatistics(otProvider, currencyFormat, isDark),
+                    _buildCashFlowStatistics(cashProvider, currencyFormat, isDark),
                   ],
                 ),
               ),
@@ -581,7 +582,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> with TickerProvider
     );
   }
 
-  Widget _buildCashFlowStatistics(OvertimeProvider provider, NumberFormat format, bool isDark) {
+  Widget _buildCashFlowStatistics(CashTransactionProvider provider, NumberFormat format, bool isDark) {
     final months = _getMonthsForPeriod(_selectedPeriod);
     final cashData = _getCashFlowDataForPeriod(provider.cashTransactions, months, _selectedProject);
 

@@ -18,9 +18,6 @@ class OvertimeProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
   List<OvertimeEntry> _entries = [];
-  List<DebtEntry> _debtEntries = [];
-  List<CashTransaction> _cashTransactions = [];
-  List<CitizenProfile> _citizenProfiles = [];
   double _hourlyRate = 85275.0;
   double? _monthlySalary = 18000000.0;
   double _allowance = 945000.0;
@@ -38,9 +35,6 @@ class OvertimeProvider with ChangeNotifier {
   double _advancePayment = 0.0;
 
   List<OvertimeEntry> get entries => _entries;
-  List<DebtEntry> get debtEntries => _debtEntries;
-  List<CashTransaction> get cashTransactions => _cashTransactions;
-  List<CitizenProfile> get citizenProfiles => _citizenProfiles;
   double get hourlyRate => _hourlyRate;
   double? get monthlySalary => _monthlySalary;
   double get allowance => _allowance;
@@ -55,25 +49,6 @@ class OvertimeProvider with ChangeNotifier {
   DateTime? get businessTripStart => _businessTripStart;
   DateTime? get businessTripEnd => _businessTripEnd;
   double get advancePayment => _advancePayment;
-
-
-  double get totalDebtAmount {
-    double total = 0;
-    for (var debt in _debtEntries) {
-      total += debt.amount;
-    }
-    return total;
-  }
-
-  double get totalDebtInterest {
-    double total = 0;
-    for (var debt in _debtEntries) {
-      final interest = debt.calculateInterest();
-      total += interest['totalInterest']!;
-    }
-    return total;
-  }
-
 
   Future<void> fetchEntries() async {
     _isLoading = true;
@@ -90,9 +65,6 @@ class OvertimeProvider with ChangeNotifier {
       _businessTripEnd = await _settingsService.getBusinessTripEnd();
       _advancePayment = await _settingsService.getAdvancePayment();
       _entries = await _storageService.getAllEntries();
-      _debtEntries = await _storageService.getAllDebtEntries();
-      _cashTransactions = await _storageService.getAllCashTransactions();
-      _citizenProfiles = await _storageService.getAllCitizenProfiles();
     } catch (e) {
       debugPrint('Error fetching entries: $e');
     } finally {
@@ -102,12 +74,7 @@ class OvertimeProvider with ChangeNotifier {
     
     // Silent update check
     checkUpdateSilently();
-
-
-    // Pre-load lookup services (MST, BHXH, Traffic Fine)
-    CitizenLookupService().preloadAll();
   }
-
 
   Future<void> checkUpdateSilently() async {
     try {
@@ -301,265 +268,6 @@ class OvertimeProvider with ChangeNotifier {
     await fetchEntries();
   }
 
-  // Debt Entry methods
-  Future<void> addDebtEntry({
-    required DateTime month,
-    required double amount,
-  }) async {
-    final entry = DebtEntry(
-      month: month,
-      amount: amount,
-      createdAt: DateTime.now(),
-    );
-    await _storageService.insertDebtEntry(entry);
-    await fetchEntries();
-  }
-
-  Future<void> deleteDebtEntry(int id) async {
-    await _storageService.deleteDebtEntry(id);
-    await fetchEntries();
-  }
-
-  Future<void> toggleDebtPaid(DebtEntry entry) async {
-    final isPaid = !entry.isPaid;
-    final updatedEntry = entry.copyWith(
-      isPaid: isPaid,
-      paidAt: isPaid ? DateTime.now() : null,
-    );
-    await _storageService.updateDebtEntry(updatedEntry);
-    await fetchEntries();
-  }
-
-  Future<void> updateDebtEntry(DebtEntry entry) async {
-    await _storageService.updateDebtEntry(entry);
-    await fetchEntries();
-  }
-
-  // Cash Transaction methods
-  Future<void> addCashTransaction({
-    required TransactionType type,
-    required double amount,
-    required String description,
-    required DateTime date,
-    String? imagePath,
-    String? note,
-    String project = 'Mặc định',
-    String paymentType = 'Hoá đơn giấy',
-    int taxRate = 0,
-  }) async {
-    final transaction = CashTransaction(
-      type: type,
-      amount: amount,
-      description: description,
-      date: date,
-      imagePath: imagePath,
-      note: note,
-      project: project,
-      paymentType: paymentType,
-      taxRate: taxRate,
-    );
-    await _storageService.insertCashTransaction(transaction);
-    await fetchEntries();
-    
-    // Tự động sync lên Google Sheets
-    await _syncProjectToSheets(project);
-  }
-
-  Future<void> deleteCashTransaction(int id) async {
-    // Lấy transaction trước khi xóa để lấy imagePath và project
-    final transaction = _cashTransactions.firstWhere((t) => t.id == id);
-    final project = transaction.project;
-    final imagePath = transaction.imagePath;
-    
-    await _storageService.deleteCashTransaction(id);
-    
-    // Xoá file ảnh vật lý nếu có
-    if (imagePath != null) {
-      try {
-        final file = File(imagePath);
-        if (await file.exists()) {
-          await file.delete();
-          debugPrint('🗑️ Deleted image: $imagePath');
-        }
-      } catch (e) {
-        debugPrint('⚠️ Error deleting image file: $e');
-      }
-    }
-
-    await fetchEntries();
-    
-    // Sync lại sau khi xóa
-    await _syncProjectToSheets(project);
-  }
-
-  /// Tính dung lượng ảnh chứng từ (trong documents)
-  Future<double> getImagesSize() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final files = directory.listSync();
-      double totalSize = 0;
-      for (var file in files) {
-        if (file is File && path.basename(file.path).startsWith('receipt_')) {
-          totalSize += await file.length();
-        }
-      }
-      return totalSize / (1024 * 1024); // MB
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  /// Dọn dẹp ảnh mồ côi (không có trong DB)
-  Future<void> cleanupOrphanedImages() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final files = directory.listSync();
-      final dbImages = _cashTransactions
-          .where((t) => t.imagePath != null)
-          .map((t) => t.imagePath!)
-          .toSet();
-
-      for (var file in files) {
-        if (file is File && path.basename(file.path).startsWith('receipt_')) {
-          if (!dbImages.contains(file.path)) {
-            await file.delete();
-            debugPrint('🗑️ Cleaned up orphaned image: ${file.path}');
-          }
-        }
-      }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('⚠️ Error cleaning up images: $e');
-    }
-  }
-
-  Future<void> updateCashTransaction(CashTransaction transaction) async {
-    final oldProject = _cashTransactions.firstWhere((t) => t.id == transaction.id).project;
-    
-    await _storageService.updateCashTransaction(transaction);
-    await fetchEntries();
-    
-    // Sync cả project cũ và mới (nếu đổi project)
-    await _syncProjectToSheets(oldProject);
-    if (transaction.project != oldProject) {
-      await _syncProjectToSheets(transaction.project);
-    }
-  }
-  
-  
-  /// Đồng bộ project lên Google Sheets
-  Future<void> _syncProjectToSheets(String project) async {
-    if (project == 'Mặc định') return; // Không sync project mặc định
-    
-    try {
-      final sheetsService = GoogleSheetsService();
-      
-      // Kiểm tra xem có access token chưa
-      final token = await sheetsService.getAccessToken();
-      if (token == null || token.isEmpty) {
-        debugPrint('⚠️ Google Sheets access token chưa được cấu hình. Bỏ qua sync.');
-        return;
-      }
-      
-      // Lấy tất cả transaction của project
-      final projectTransactions = _cashTransactions.where((t) => t.project == project).toList();
-      
-      // Tính tổng thu
-      final totalIncome = projectTransactions
-          .where((t) => t.type == TransactionType.income)
-          .fold(0.0, (sum, t) => sum + t.amount);
-          
-      // Lấy danh sách chi tiêu để sync chi tiết
-      final expenses = projectTransactions
-          .where((t) => t.type == TransactionType.expense)
-          .map((t) {
-            final combinedNote = t.note != null && t.note!.isNotEmpty 
-                ? '${t.paymentType} (${t.note})' 
-                : t.paymentType;
-            return {
-              'name': t.description,
-              'amount': t.amount,
-              'date': t.date,
-              'note': combinedNote,
-            };
-          })
-          .toList();
-      
-      final success = await sheetsService.syncProjectDetails(
-        projectName: project,
-        totalIncome: totalIncome,
-        expenses: expenses,
-      );
-      
-      if (success) {
-        debugPrint('✅ Đã đồng bộ project $project lên Google Sheets');
-      } else {
-        debugPrint('❌ Lỗi khi đồng bộ project $project');
-      }
-    } catch (e) {
-      debugPrint('Error syncing to sheets: $e');
-    }
-  }
-  
-  /// Đồng bộ tất cả projects lên Google Sheets (manual sync)
-  Future<void> syncAllProjectsToSheets() async {
-    final projects = _cashTransactions.map((t) => t.project).toSet();
-    for (final project in projects) {
-      if (project != 'Mặc định') {
-        await _syncProjectToSheets(project);
-      }
-    }
-  }
-
-  /// Tính tổng thu nhập thực tế cho một tháng cụ thể
-  double getTotalIncomeForMonth(int year, int month) {
-    double totalOT = 0;
-    for (var entry in _entries) {
-      if (entry.date.month == month && entry.date.year == year) {
-        totalOT += entry.totalPay;
-      }
-    }
-    final baseIncome = (monthlySalary ?? 0);
-    return baseIncome + totalOT - _bhxhDeduction;
-  }
-
-
-
-  /// Phân tích xu hướng làm việc theo thứ trong tuần
-  Map<int, Map<String, dynamic>> getWorkTrends() {
-    // 1: Thứ 2, ..., 7: Chủ nhật
-    final trends = <int, Map<String, dynamic>>{};
-    for (int i = 1; i <= 7; i++) {
-      trends[i] = {'count': 0, 'totalHours': 0.0};
-    }
-
-    for (var entry in _entries) {
-      final weekday = entry.date.weekday;
-      trends[weekday]!['count'] = (trends[weekday]!['count'] as int) + 1;
-      final totalHours = entry.hours15 + entry.hours18 + entry.hours20;
-      trends[weekday]!['totalHours'] = (trends[weekday]!['totalHours'] as double) + totalHours;
-    }
-
-    return trends;
-  }
-
-  // Citizen Profile methods
-  Future<void> addCitizenProfile(CitizenProfile profile) async {
-    await _storageService.insertCitizenProfile(profile);
-    await fetchEntries();
-  }
-
-  Future<void> updateCitizenProfile(CitizenProfile profile) async {
-    await _storageService.updateCitizenProfile(profile);
-    await fetchEntries();
-  }
-
-  Future<void> deleteCitizenProfile(int id) async {
-    await _storageService.deleteCitizenProfile(id);
-    await fetchEntries();
-  }
-
-  // Salary Estimation methods
   Future<void> updateResponsibilityAllowance(double amount) async {
     await _settingsService.setResponsibilityAllowance(amount);
     _responsibilityAllowance = amount;
@@ -613,4 +321,79 @@ class OvertimeProvider with ChangeNotifier {
     return calculateBusinessTripPayForMonth(DateTime.now().year, DateTime.now().month);
   }
 
+  /// Tính toán tổng lương thực lĩnh cho một tháng cụ thể
+  double calculateFinalSalaryForMonth(int year, int month) {
+    final monthEntries = _entries.where((e) => 
+      e.date.month == month && e.date.year == year
+    ).toList();
+
+    // OT Breakdown
+    double hours15 = monthEntries.fold(0, (sum, e) => sum + e.hours15);
+    double hours18 = monthEntries.fold(0, (sum, e) => sum + e.hours18);
+    double hours20 = monthEntries.fold(0, (sum, e) => sum + e.hours20);
+    
+    double hourlyRate = getHourlyRateForMonth(year, month);
+    double pay15 = hours15 * hourlyRate * 1.5;
+    double pay18 = hours18 * hourlyRate * 1.8;
+    double pay20 = hours20 * hourlyRate * 2.0;
+    double totalOT = pay15 + pay18 + pay20;
+
+    // Logic: Lương chính = monthlySalary - Responsibility - Diligence
+    double baseSalary = (_monthlySalary ?? 0) - _responsibilityAllowance - _diligenceAllowance;
+    
+    double businessTripPay = calculateBusinessTripPayForMonth(year, month);
+    bool isOnTrip = isOnBusinessTripInMonth(year, month);
+    double internetPay = isOnTrip ? 120000.0 : 0.0;
+    
+    // Logic: Xăng xe = 100k nếu không đi công tác, ngược lại = 0
+    double gasolinePay = isOnTrip ? 0.0 : 100000.0;
+    
+    // Sub-totals
+    double section1Total = baseSalary + _responsibilityAllowance + _diligenceAllowance + totalOT;
+    double section2Total = gasolinePay + businessTripPay + internetPay;
+    double totalGrossSalary = section1Total + section2Total; // TỔNG LƯƠNG (1+2)
+    double section3Total = _bhxhDeduction + _advancePayment; // CÁC KHOẢN TRỪ
+
+    // Final Salary = (1+2) - 3
+    return totalGrossSalary - section3Total;
+  }
+
+  double getTotalIncomeForMonth(int year, int month) {
+    final monthEntries = _entries.where((e) => 
+      e.date.month == month && e.date.year == year
+    ).toList();
+
+    double hours15 = monthEntries.fold(0, (sum, e) => sum + e.hours15);
+    double hours18 = monthEntries.fold(0, (sum, e) => sum + e.hours18);
+    double hours20 = monthEntries.fold(0, (sum, e) => sum + e.hours20);
+    
+    double hourlyRate = getHourlyRateForMonth(year, month);
+    double pay15 = hours15 * hourlyRate * 1.5;
+    double pay18 = hours18 * hourlyRate * 1.8;
+    double pay20 = hours20 * hourlyRate * 2.0;
+    double totalOT = pay15 + pay18 + pay20;
+
+    double baseSalary = (_monthlySalary ?? 0) - _responsibilityAllowance - _diligenceAllowance;
+    double businessTripPay = calculateBusinessTripPayForMonth(year, month);
+    bool isOnTrip = isOnBusinessTripInMonth(year, month);
+    double internetPay = isOnTrip ? 120000.0 : 0.0;
+    double gasolinePay = isOnTrip ? 0.0 : 100000.0;
+    
+    return baseSalary + _responsibilityAllowance + _diligenceAllowance + totalOT + gasolinePay + businessTripPay + internetPay;
+  }
+
+  Map<int, Map<String, dynamic>> getWorkTrends() {
+    final trends = <int, Map<String, dynamic>>{};
+    for (int i = 1; i <= 7; i++) {
+      trends[i] = {'count': 0, 'totalHours': 0.0};
+    }
+
+    for (var entry in _entries) {
+      final weekday = entry.date.weekday;
+      final hours = entry.hours15 + entry.hours18 + entry.hours20;
+      trends[weekday]!['count'] = (trends[weekday]!['count'] as int) + 1;
+      trends[weekday]!['totalHours'] = (trends[weekday]!['totalHours'] as double) + hours;
+    }
+    return trends;
+  }
 }

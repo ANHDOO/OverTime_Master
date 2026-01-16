@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
 import '../../models/citizen_profile.dart';
-import '../../providers/overtime_provider.dart';
+import '../../providers/citizen_profile_provider.dart';
 import '../../services/citizen_lookup_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -261,7 +261,7 @@ class _TrafficFineSearchScreenState extends State<TrafficFineSearchScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Consumer<OvertimeProvider>(
+        Consumer<CitizenProfileProvider>(
           builder: (context, provider, _) {
             final profiles = provider.citizenProfiles.where((p) => p.licensePlate != null && p.licensePlate!.isNotEmpty).toList();
             if (profiles.isEmpty) return const SizedBox.shrink();

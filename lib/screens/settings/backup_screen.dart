@@ -3,6 +3,10 @@ import 'package:intl/intl.dart';
 import '../../services/backup_service.dart';
 import 'package:provider/provider.dart';
 import '../../providers/overtime_provider.dart';
+import '../../providers/debt_provider.dart';
+import '../../providers/cash_transaction_provider.dart';
+import '../../providers/citizen_profile_provider.dart';
+import '../../providers/gold_provider.dart';
 import '../../theme/app_theme.dart';
 
 class BackupScreen extends StatefulWidget {
@@ -113,8 +117,11 @@ class _BackupScreenState extends State<BackupScreen> {
       if (!mounted) return;
       if (results['database'] == true) {
         try {
-          final provider = Provider.of<OvertimeProvider>(context, listen: false);
-          await provider.reloadFromDisk();
+          await Provider.of<OvertimeProvider>(context, listen: false).reloadFromDisk();
+          await Provider.of<DebtProvider>(context, listen: false).fetchDebtEntries();
+          await Provider.of<CashTransactionProvider>(context, listen: false).fetchCashTransactions();
+          await Provider.of<CitizenProfileProvider>(context, listen: false).fetchCitizenProfiles();
+          await Provider.of<GoldProvider>(context, listen: false).fetchGoldData();
         } catch (e) {
           debugPrint('Error reloading provider after restore: $e');
         }

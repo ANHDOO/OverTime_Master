@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/overtime_provider.dart';
+import '../providers/debt_provider.dart';
 import '../models/debt_entry.dart';
 import '../theme/app_theme.dart';
 
@@ -13,7 +13,7 @@ class DebtScreen extends StatelessWidget {
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Consumer<OvertimeProvider>(
+    return Consumer<DebtProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
           return Center(
@@ -108,7 +108,7 @@ class DebtScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, OvertimeProvider provider, NumberFormat format, bool isDark) {
+  Widget _buildSummaryCard(BuildContext context, DebtProvider provider, NumberFormat format, bool isDark) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(16),
@@ -240,7 +240,7 @@ class DebtScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDebtCard(BuildContext context, DebtEntry debt, OvertimeProvider provider, NumberFormat format, bool isDark) {
+  Widget _buildDebtCard(BuildContext context, DebtEntry debt, DebtProvider provider, NumberFormat format, bool isDark) {
     final interest = debt.calculateInterest();
     final monthFormat = DateFormat('MM/yyyy');
 
@@ -388,7 +388,7 @@ class DebtScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, OvertimeProvider provider, int id, bool isDark) {
+  void _showDeleteDialog(BuildContext context, DebtProvider provider, int id, bool isDark) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

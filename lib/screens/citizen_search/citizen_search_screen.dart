@@ -7,7 +7,7 @@ import 'gold_price_detail_screen.dart';
 import 'fuel_price_detail_screen.dart';
 import 'package:intl/intl.dart';
 import '../../models/citizen_profile.dart';
-import '../../providers/overtime_provider.dart';
+import '../../providers/citizen_profile_provider.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 
@@ -76,7 +76,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
   }
 
   Widget _buildWalletSection(BuildContext context, bool isDark) {
-    return Consumer<OvertimeProvider>(
+    return Consumer<CitizenProfileProvider>(
       builder: (context, provider, child) {
         final profiles = provider.citizenProfiles;
         
@@ -348,7 +348,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
         ),
         actions: [
           if (profile != null)
-            TextButton(onPressed: () { Provider.of<OvertimeProvider>(context, listen: false).deleteCitizenProfile(profile.id!); Navigator.pop(context); }, child: Text('Xóa', style: TextStyle(color: AppColors.danger))),
+            TextButton(onPressed: () { Provider.of<CitizenProfileProvider>(context, listen: false).deleteCitizenProfile(profile.id!); Navigator.pop(context); }, child: Text('Xóa', style: TextStyle(color: AppColors.danger))),
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
           Container(
             decoration: BoxDecoration(gradient: AppGradients.heroBlue, borderRadius: AppRadius.borderMd),
@@ -356,7 +356,7 @@ class _CitizenSearchScreenState extends State<CitizenSearchScreen> {
               onPressed: () {
                 if (nameController.text.isEmpty) return;
                 final newProfile = CitizenProfile(id: profile?.id, label: nameController.text, taxId: taxController.text, licensePlate: plateController.text, cccdId: cccdController.text, bhxhId: bhxhController.text);
-                final provider = Provider.of<OvertimeProvider>(context, listen: false);
+                final provider = Provider.of<CitizenProfileProvider>(context, listen: false);
                 if (profile == null) provider.addCitizenProfile(newProfile);
                 else provider.updateCitizenProfile(newProfile);
                 Navigator.pop(context);

@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/overtime_provider.dart';
+import '../../providers/cash_transaction_provider.dart';
 import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -27,7 +28,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
 
   Future<void> _calculateStorage() async {
     final cache = await _updateService.getUpdateCacheSize();
-    final images = await Provider.of<OvertimeProvider>(context, listen: false).getImagesSize();
+    final images = await Provider.of<CashTransactionProvider>(context, listen: false).getImagesSize();
     if (mounted) {
       setState(() {
         _cacheSize = cache;
@@ -38,7 +39,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
 
   Future<void> _cleanup() async {
     await _updateService.clearUpdateCache();
-    await Provider.of<OvertimeProvider>(context, listen: false).cleanupOrphanedImages();
+    await Provider.of<CashTransactionProvider>(context, listen: false).cleanupOrphanedImages();
     await _calculateStorage();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

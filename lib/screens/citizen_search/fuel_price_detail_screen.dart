@@ -77,7 +77,22 @@ class _FuelPriceDetailScreenState extends State<FuelPriceDetailScreen> {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(item['type'] ?? '', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
           const SizedBox(height: 4),
-          Text('Giá niêm yết', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+          Row(
+            children: [
+              Text('Giá niêm yết', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+              if (item['diff'] != null && item['diff']!.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '(${item['diff']})',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: item['diff']!.contains('+') ? AppColors.success : (item['diff']!.contains('-') ? AppColors.danger : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ])),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

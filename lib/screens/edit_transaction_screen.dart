@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import '../providers/overtime_provider.dart';
+import '../providers/cash_transaction_provider.dart';
 import '../models/cash_transaction.dart';
 import '../widgets/smart_money_input.dart';
 import '../theme/app_theme.dart';
@@ -202,7 +202,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       taxRate: _taxRate,
     );
 
-    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final provider = Provider.of<CashTransactionProvider>(context, listen: false);
     await provider.updateCashTransaction(updatedTransaction);
 
     if (mounted) Navigator.pop(context);
@@ -210,7 +210,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<OvertimeProvider>(context);
+    final provider = Provider.of<CashTransactionProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     final existingProjects = provider.cashTransactions.map((t) => t.project).toSet().toList()..sort();
@@ -691,7 +691,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Hủy', style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted))),
           TextButton(
             onPressed: () {
-              final provider = Provider.of<OvertimeProvider>(context, listen: false);
+              final provider = Provider.of<CashTransactionProvider>(context, listen: false);
               provider.deleteCashTransaction(widget.transaction.id!);
               Navigator.pop(context);
               Navigator.pop(context);

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/overtime_provider.dart';
+import '../providers/debt_provider.dart';
 import '../widgets/smart_money_input.dart';
 import '../theme/app_theme.dart';
+import 'package:intl/intl.dart';
 
 class AddDebtScreen extends StatefulWidget {
   const AddDebtScreen({super.key});
@@ -14,6 +16,25 @@ class AddDebtScreen extends StatefulWidget {
 class _AddDebtScreenState extends State<AddDebtScreen> {
   final TextEditingController _amountController = TextEditingController();
   DateTime _selectedMonth = DateTime.now();
+  final _currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchEstimatedSalary();
+    });
+  }
+
+  void _fetchEstimatedSalary() {
+    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final amount = provider.calculateFinalSalaryForMonth(_selectedMonth.year, _selectedMonth.month);
+    if (amount > 0) {
+      setState(() {
+        _amountController.text = _currencyFormat.format(amount).trim();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -33,6 +54,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
       setState(() {
         _selectedMonth = DateTime(picked.year, picked.month, 1);
       });
+      _fetchEstimatedSalary();
     }
   }
 
@@ -181,8 +203,8 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                     return;
                   }
 
-                  final provider = Provider.of<OvertimeProvider>(context, listen: false);
-                  await provider.addDebtEntry(
+                  final debtProvider = Provider.of<DebtProvider>(context, listen: false);
+                  await debtProvider.addDebtEntry(
                     month: _selectedMonth,
                     amount: amount,
                   );

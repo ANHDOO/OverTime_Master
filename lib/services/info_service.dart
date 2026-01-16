@@ -191,10 +191,15 @@ class InfoService {
           // Skip header rows (usually first 2)
           for (var i = 2; i < rows.length; i++) {
             var cols = rows[i].querySelectorAll('td');
-            if (cols.length >= 3) {
+            if (cols.length >= 4) {
+              final type = cols[1].text.trim();
+              final price = cols[2].text.trim().replaceAll(' đ', '');
+              final diff = cols[3].text.trim().replaceAll(' đ', '');
+
               prices.add({
-                'type': cols[1].text.trim(),
-                'price': cols[2].text.trim().replaceAll(' đ', ''),
+                'type': type,
+                'price': price,
+                'diff': diff,
               });
             }
           }

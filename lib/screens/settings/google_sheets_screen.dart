@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/google_sheets_service.dart';
 import '../../providers/overtime_provider.dart';
+import '../../providers/cash_transaction_provider.dart';
 import '../../theme/app_theme.dart';
 
 class GoogleSheetsScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
 
 
   Future<void> _syncAll() async {
-    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final provider = Provider.of<CashTransactionProvider>(context, listen: false);
     setState(() {
       _isSyncing = true;
       _status = 'Đang đồng bộ...';
@@ -294,7 +295,7 @@ class _GoogleSheetsScreenState extends State<GoogleSheetsScreen> {
   }
 
   Future<List<String>> _getSyncedProjects() async {
-    final provider = Provider.of<OvertimeProvider>(context, listen: false);
+    final provider = Provider.of<CashTransactionProvider>(context, listen: false);
     final projects = provider.cashTransactions
         .map((t) => t.project)
         .where((p) => p != 'Mặc định')

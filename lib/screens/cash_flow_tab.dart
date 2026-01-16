@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/overtime_provider.dart';
+import '../providers/cash_transaction_provider.dart';
 import '../models/cash_transaction.dart';
 import '../theme/app_theme.dart';
 import 'edit_transaction_screen.dart';
@@ -43,7 +43,7 @@ class _CashFlowTabState extends State<CashFlowTab> {
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Consumer<OvertimeProvider>(
+    return Consumer<CashTransactionProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
           return Center(child: CircularProgressIndicator(color: AppColors.tealPrimary));
@@ -278,7 +278,7 @@ class _CashFlowTabState extends State<CashFlowTab> {
     );
   }
 
-  Widget _buildTransactionCard(BuildContext context, OvertimeProvider provider, CashTransaction transaction, NumberFormat format, bool isDark) {
+  Widget _buildTransactionCard(BuildContext context, CashTransactionProvider provider, CashTransaction transaction, NumberFormat format, bool isDark) {
     final isIncome = transaction.type == TransactionType.income;
     final cardColor = isDark ? AppColors.darkCard : AppColors.lightCard;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
