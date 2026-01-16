@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'providers/overtime_provider.dart';
-import 'providers/debt_provider.dart';
-import 'providers/cash_transaction_provider.dart';
-import 'providers/citizen_profile_provider.dart';
-import 'providers/gold_provider.dart';
-import 'providers/theme_provider.dart';
-import 'screens/splash_screen.dart';
-import 'services/notification_service.dart';
-import 'services/storage_service.dart';
-import 'theme/app_theme.dart';
+import 'logic/providers/overtime_provider.dart';
+import 'logic/providers/debt_provider.dart';
+import 'logic/providers/cash_transaction_provider.dart';
+import 'logic/providers/citizen_profile_provider.dart';
+import 'logic/providers/gold_provider.dart';
+import 'logic/providers/theme_provider.dart';
+import 'logic/providers/font_provider.dart';
+import 'presentation/screens/splash_screen.dart';
+import 'data/services/notification_service.dart';
+import 'data/services/storage_service.dart';
+import 'core/theme/app_theme.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -39,6 +40,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CitizenProfileProvider()..fetchCitizenProfiles()),
         ChangeNotifierProvider(create: (_) => GoldProvider()..fetchGoldData()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => FontProvider()..loadFont()),
       ],
       child: OvertimeApp(navigatorKey: navigatorKey),
     ),

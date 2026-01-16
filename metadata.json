@@ -3,6 +3,6 @@
   "versionCode": 60,
   "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.4.3/overtime_1.4.3.apk",
   "changelog": "# Phiên bản 1.4.3\n\n## Tính năng mới\n\n### Tái cấu trúc State Management (Refactor)\n- **Tách biệt Provider**: Phân chia `OvertimeProvider` thành các Provider chuyên biệt để tăng hiệu suất và dễ bảo trì:\n  - `DebtProvider`: Quản lý nợ lương.\n  - `CashTransactionProvider`: Quản lý thu chi và dự án.\n  - `CitizenProfileProvider`: Quản lý hồ sơ công dân.\n  - `GoldProvider`: Quản lý giá vàng và danh mục đầu tư.\n\n### Nâng cấp Giao diện Vàng (Gold UI/UX)\n- **Biểu đồ thông minh**: Tối giản hiển thị giá trên biểu đồ, chỉ hiện nhãn cho điểm dữ liệu mới nhất để tránh rối mắt.\n- **Tooltip chi tiết**: Hiển thị thêm chênh lệch Mua-Bán khi chạm vào biểu đồ.\n- **Danh mục đầu tư**: Thêm tab \"Sổ đầu tư\" giúp theo dõi tổng vốn, giá trị hiện tại và lợi nhuận thực tế theo thời gian thực.\n- **Aesthetics**: Cải thiện màu sắc, gradient và khoảng cách theo tiêu chuẩn thiết kế cao cấp.\n\n## Sửa lỗi & Cải tiến\n- **Visibility**: Sửa lỗi tương phản cho các Tab \"Giá hiện tại\" và \"Sổ đầu tư\" trên thanh tiêu đề.\n- **Chart Labels**: Cải thiện độ hiển thị của nhãn giá trên biểu đồ vàng bằng cách thêm nền tối tương phản.\n- **Compilation**: Sửa các lỗi biên dịch sau khi tái cấu trúc, đảm bảo ứng dụng chạy ổn định.\n- **Performance**: Tối ưu hóa việc tải dữ liệu và dọn dẹp bộ nhớ hình ảnh.\n",
-  "publishedAt": "2026-01-16T12:30:30.888759Z",
-  "fileSize": "23.4MB"
+  "publishedAt": "2026-01-16T17:24:22.065899Z",
+  "fileSize": "63.9MB"
 }

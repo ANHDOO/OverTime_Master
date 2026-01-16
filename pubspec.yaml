@@ -58,6 +58,7 @@ dependencies:
   share_plus: ^10.1.4 # File sharing
   webview_flutter: ^4.8.0   # WebView for CSGT captcha
   html: ^0.15.4
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -111,6 +112,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  fonts:
+    - family: UTMHelvetIns
+      fonts:
+        - asset: assets/00119-UTM-HelvetIns.ttf
 
 flutter_launcher_icons:
   android: "launcher_icon"
