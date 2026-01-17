@@ -13,6 +13,9 @@ import 'presentation/screens/splash_screen.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/storage_service.dart';
 import 'core/theme/app_theme.dart';
+import 'presentation/screens/add_transaction_screen.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'dart:async';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -47,9 +50,55 @@ void main() async {
   );
 }
 
-class OvertimeApp extends StatelessWidget {
+class OvertimeApp extends StatefulWidget {
   final GlobalKey<NavigatorState>? navigatorKey;
   const OvertimeApp({super.key, this.navigatorKey});
+
+  @override
+  State<OvertimeApp> createState() => _OvertimeAppState();
+}
+
+class _OvertimeAppState extends State<OvertimeApp> {
+  late StreamSubscription _intentDataStreamSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // For sharing images coming from outside the app while the app is in the memory
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
+      if (value.isNotEmpty) {
+        _handleSharedFiles(value);
+      }
+    }, onError: (err) {
+      debugPrint("getIntentDataStream error: $err");
+    });
+
+    // For sharing images coming from outside the app while the app is closed
+    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
+      if (value.isNotEmpty) {
+        _handleSharedFiles(value);
+      }
+    });
+  }
+
+  void _handleSharedFiles(List<SharedMediaFile> files) {
+    if (files.isEmpty) return;
+    final imagePath = files.first.path;
+    
+    // Set the pending path in the provider
+    final context = widget.navigatorKey?.currentContext;
+    if (context != null) {
+      Provider.of<CashTransactionProvider>(context, listen: false)
+          .setPendingSharedImagePath(imagePath);
+    }
+  }
+
+  @override
+  void dispose() {
+    _intentDataStreamSubscription.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +125,7 @@ class OvertimeApp extends StatelessWidget {
         final selectedFont = fontProvider.selectedFont;
 
         return MaterialApp(
-          navigatorKey: navigatorKey,
+          navigatorKey: widget.navigatorKey,
           title: 'Sổ Tay Công Việc',
           debugShowCheckedModeBanner: false,
           locale: const Locale('vi', 'VN'),

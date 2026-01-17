@@ -1,4 +1,5 @@
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as excel_pkg;
+import 'package:syncfusion_flutter_xlsio/xlsio.dart' hide Column, Alignment, Border, Row;
 import 'package:flutter/material.dart' hide Border, BorderStyle;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -38,7 +39,7 @@ class ExcelService {
     monthEntries.sort((a, b) => a.date.compareTo(b.date));
     
     // Tạo Excel workbook
-    final excel = Excel.createExcel();
+    final excel = excel_pkg.Excel.createExcel();
     final sheetName = 'Tăng ca T${month.toString().padLeft(2, '0')}-$year';
     excel.rename('Sheet1', sheetName);
     final sheet = excel[sheetName];
@@ -46,56 +47,56 @@ class ExcelService {
     // === HEADER THÔNG TIN ===
     
     // Tiêu đề
-    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0), 
-                CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0));
-    final titleCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
-    titleCell.value = TextCellValue('BẢNG CHẤM CÔNG TĂNG CA - THÁNG $month/$year');
-    titleCell.cellStyle = CellStyle(
+    sheet.merge(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0), 
+                excel_pkg.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0));
+    final titleCell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
+    titleCell.value = excel_pkg.TextCellValue('BẢNG CHẤM CÔNG TĂNG CA - THÁNG $month/$year');
+    titleCell.cellStyle = excel_pkg.CellStyle(
       bold: true,
       fontSize: 16,
       fontFamily: 'Times New Roman',
-      horizontalAlign: HorizontalAlign.Center,
+      horizontalAlign: excel_pkg.HorizontalAlign.Center,
     );
     
     // Thông tin nhân viên - style with Times New Roman
-    final infoStyle = CellStyle(fontFamily: 'Times New Roman', fontSize: 11);
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2))
-      ..value = TextCellValue('Họ và tên:')
+    final infoStyle = excel_pkg.CellStyle(fontFamily: 'Times New Roman', fontSize: 11);
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2))
+      ..value = excel_pkg.TextCellValue('Họ và tên:')
       ..cellStyle = infoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 2))
-      ..value = TextCellValue(employeeName)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 2))
+      ..value = excel_pkg.TextCellValue(employeeName)
       ..cellStyle = infoStyle;
     
     if (employeeId != null) {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 2))
-        ..value = TextCellValue('Mã NV:')
+      sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 2))
+        ..value = excel_pkg.TextCellValue('Mã NV:')
         ..cellStyle = infoStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 2))
-        ..value = TextCellValue(employeeId)
+      sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 2))
+        ..value = excel_pkg.TextCellValue(employeeId)
         ..cellStyle = infoStyle;
     }
     
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3))
-      ..value = TextCellValue('Ngày xuất:')
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3))
+      ..value = excel_pkg.TextCellValue('Ngày xuất:')
       ..cellStyle = infoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3))
-      ..value = TextCellValue(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()))
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3))
+      ..value = excel_pkg.TextCellValue(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()))
       ..cellStyle = infoStyle;
     
     // === BORDERS & STYLES ===
-    final Border thinBorder = Border(
-      borderStyle: BorderStyle.Thin,
+    final excel_pkg.Border thinBorder = excel_pkg.Border(
+      borderStyle: excel_pkg.BorderStyle.Thin,
     );
 
     // Header Style
-    final tableHeaderStyle = CellStyle(
+    final tableHeaderStyle = excel_pkg.CellStyle(
       bold: true,
       fontSize: 11,
       fontFamily: 'Times New Roman',
-      horizontalAlign: HorizontalAlign.Center,
-      verticalAlign: VerticalAlign.Center,
-      backgroundColorHex: ExcelColor.fromHexString('#4472C4'),
-      fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+      horizontalAlign: excel_pkg.HorizontalAlign.Center,
+      verticalAlign: excel_pkg.VerticalAlign.Center,
+      backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#4472C4'),
+      fontColorHex: excel_pkg.ExcelColor.fromHexString('#FFFFFF'),
       topBorder: thinBorder,
       bottomBorder: thinBorder,
       leftBorder: thinBorder,
@@ -103,22 +104,22 @@ class ExcelService {
     );
 
     // Data Styles
-    final dataStyleCenter = CellStyle(
+    final dataStyleCenter = excel_pkg.CellStyle(
       fontFamily: 'Times New Roman', 
       fontSize: 11,
-      horizontalAlign: HorizontalAlign.Center,
-      verticalAlign: VerticalAlign.Center,
+      horizontalAlign: excel_pkg.HorizontalAlign.Center,
+      verticalAlign: excel_pkg.VerticalAlign.Center,
       topBorder: thinBorder,
       bottomBorder: thinBorder,
       leftBorder: thinBorder,
       rightBorder: thinBorder,
     );
     
-    final dataStyleRight = CellStyle(
+    final dataStyleRight = excel_pkg.CellStyle(
       fontFamily: 'Times New Roman', 
       fontSize: 11,
-      horizontalAlign: HorizontalAlign.Right,
-      verticalAlign: VerticalAlign.Center,
+      horizontalAlign: excel_pkg.HorizontalAlign.Right,
+      verticalAlign: excel_pkg.VerticalAlign.Center,
       topBorder: thinBorder,
       bottomBorder: thinBorder,
       leftBorder: thinBorder,
@@ -140,8 +141,8 @@ class ExcelService {
     
     const headerRow = 5;
     for (var i = 0; i < headers.length; i++) {
-      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: headerRow));
-      cell.value = TextCellValue(headers[i]);
+      final cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: headerRow));
+      cell.value = excel_pkg.TextCellValue(headers[i]);
       cell.cellStyle = tableHeaderStyle;
     }
     
@@ -225,8 +226,8 @@ class ExcelService {
         if (shifts.length > 1) {
           for (int col = 0; col <= 2; col++) {
             sheet.merge(
-              CellIndex.indexByColumnRow(columnIndex: col, rowIndex: startRow),
-              CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow - 1),
+              excel_pkg.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: startRow),
+              excel_pkg.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow - 1),
             );
           }
         }
@@ -240,37 +241,37 @@ class ExcelService {
     
     // === TỔNG CỘNG ===
     final summaryRow = currentRow + 1;
-    final summaryStyle = CellStyle(
+    final summaryStyle = excel_pkg.CellStyle(
       bold: true,
       fontSize: 11,
       fontFamily: 'Times New Roman',
-      backgroundColorHex: ExcelColor.fromHexString('#D9E2F3'),
+      backgroundColorHex: excel_pkg.ExcelColor.fromHexString('#D9E2F3'),
       topBorder: thinBorder,
       bottomBorder: thinBorder,
       leftBorder: thinBorder,
       rightBorder: thinBorder,
     );
     
-    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: summaryRow), 
-                CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: summaryRow));
-    final summaryLabelCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: summaryRow));
-    summaryLabelCell.value = TextCellValue('TỔNG CỘNG');
+    sheet.merge(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: summaryRow), 
+                excel_pkg.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: summaryRow));
+    final summaryLabelCell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: summaryRow));
+    summaryLabelCell.value = excel_pkg.TextCellValue('TỔNG CỘNG');
     summaryLabelCell.cellStyle = summaryStyle;
     
-    final total15Cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: summaryRow));
-    total15Cell.value = DoubleCellValue(total15);
+    final total15Cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: summaryRow));
+    total15Cell.value = excel_pkg.DoubleCellValue(total15);
     total15Cell.cellStyle = summaryStyle;
     
-    final total18Cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: summaryRow));
-    total18Cell.value = DoubleCellValue(total18);
+    final total18Cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: summaryRow));
+    total18Cell.value = excel_pkg.DoubleCellValue(total18);
     total18Cell.cellStyle = summaryStyle;
     
-    final total20Cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: summaryRow));
-    total20Cell.value = DoubleCellValue(total20);
+    final total20Cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: summaryRow));
+    total20Cell.value = excel_pkg.DoubleCellValue(total20);
     total20Cell.cellStyle = summaryStyle;
     
-    final totalAllCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: summaryRow));
-    totalAllCell.value = DoubleCellValue(total15 + total18 + total20);
+    final totalAllCell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: summaryRow));
+    totalAllCell.value = excel_pkg.DoubleCellValue(total15 + total18 + total20);
     totalAllCell.cellStyle = summaryStyle;
     
     // === THIẾT LẬP ĐỘ RỘNG CỘT ===
@@ -435,7 +436,7 @@ class ExcelService {
 
   /// Helper to write a data row to Excel
   static void _writeExcelRow({
-    required Sheet sheet,
+    required excel_pkg.Sheet sheet,
     required int row,
     required String stt,
     required String date,
@@ -447,42 +448,42 @@ class ExcelService {
     required double h18,
     required double h20,
     required double total,
-    required CellStyle styleCenter,
-    required CellStyle styleRight,
+    required excel_pkg.CellStyle styleCenter,
+    required excel_pkg.CellStyle styleRight,
   }) {
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-      ..value = TextCellValue(stt)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+      ..value = excel_pkg.TextCellValue(stt)
       ..cellStyle = styleCenter;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-      ..value = TextCellValue(date)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+      ..value = excel_pkg.TextCellValue(date)
       ..cellStyle = styleCenter;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
-      ..value = TextCellValue(dayOfWeek)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+      ..value = excel_pkg.TextCellValue(dayOfWeek)
       ..cellStyle = styleCenter;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
-      ..value = TextCellValue(startTime)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+      ..value = excel_pkg.TextCellValue(startTime)
       ..cellStyle = styleCenter;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
-      ..value = TextCellValue(endTime)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+      ..value = excel_pkg.TextCellValue(endTime)
       ..cellStyle = styleCenter;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row))
-      ..value = TextCellValue(otType)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: row))
+      ..value = excel_pkg.TextCellValue(otType)
       ..cellStyle = styleCenter;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row))
-      ..value = DoubleCellValue(h15)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: row))
+      ..value = excel_pkg.DoubleCellValue(h15)
       ..cellStyle = styleRight;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row))
-      ..value = DoubleCellValue(h18)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: row))
+      ..value = excel_pkg.DoubleCellValue(h18)
       ..cellStyle = styleRight;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row))
-      ..value = DoubleCellValue(h20)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row))
+      ..value = excel_pkg.DoubleCellValue(h20)
       ..cellStyle = styleRight;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row))
-      ..value = DoubleCellValue(total)
+    sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row))
+      ..value = excel_pkg.DoubleCellValue(total)
       ..cellStyle = styleRight;
   }
 
-  /// Xuất phiếu giải chi theo dự án cho kế toán
+  /// Xuất phiếu giải chi theo dự án cho kế toán (Sử dụng Syncfusion để hỗ trợ chèn ảnh)
   static Future<void> exportCashFlowForAccounting({
     required BuildContext context,
     required List<CashTransaction> transactions,
@@ -519,247 +520,240 @@ class ExcelService {
     // Sắp xếp theo ngày
     filteredTransactions.sort((a, b) => a.date.compareTo(b.date));
     
-    final excel = Excel.createExcel();
-    final sheetName = 'GiaiChi_$project';
-    excel.rename('Sheet1', sheetName);
-    final sheet = excel[sheetName];
+    // Tạo Workbook
+    final Workbook workbook = Workbook();
+    final Worksheet sheet = workbook.worksheets[0];
+    sheet.name = 'GiaiChi_$project';
+    
+    // Tạo sheet Chứng từ
+    final Worksheet imageSheet = workbook.worksheets.addWithName('Chứng từ');
     
     // === STYLES ===
-    final Border thinBorder = Border(borderStyle: BorderStyle.Thin);
+    final Style titleStyle = workbook.styles.add('titleStyle');
+    titleStyle.bold = true;
+    titleStyle.fontSize = 16;
+    titleStyle.fontName = 'Times New Roman';
+    titleStyle.hAlign = HAlignType.center;
 
-    final titleStyle = CellStyle(bold: true, fontSize: 16, fontFamily: 'Times New Roman', horizontalAlign: HorizontalAlign.Center);
-    final headerInfoStyle = CellStyle(fontFamily: 'Times New Roman', fontSize: 11, bold: true);
-    final normalInfoStyle = CellStyle(fontFamily: 'Times New Roman', fontSize: 11);
+    final Style headerInfoStyle = workbook.styles.add('headerInfoStyle');
+    headerInfoStyle.fontName = 'Times New Roman';
+    headerInfoStyle.fontSize = 11;
+    headerInfoStyle.bold = true;
 
-    // NumberFormat for currency (thousands separator)
-    final currencyFormat = NumberFormat('#,###', 'vi_VN');
-    
-    final tableHeaderStyle = CellStyle(
-      bold: true, fontSize: 11, fontFamily: 'Times New Roman',
-      horizontalAlign: HorizontalAlign.Center, verticalAlign: VerticalAlign.Center,
-      backgroundColorHex: ExcelColor.fromHexString('#D9E2F3'),
-      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
-    );
+    final Style tableHeaderStyle = workbook.styles.add('tableHeaderStyle');
+    tableHeaderStyle.bold = true;
+    tableHeaderStyle.fontSize = 11;
+    tableHeaderStyle.fontName = 'Times New Roman';
+    tableHeaderStyle.hAlign = HAlignType.center;
+    tableHeaderStyle.vAlign = VAlignType.center;
+    tableHeaderStyle.backColor = '#D9E2F3';
+    tableHeaderStyle.borders.all.lineStyle = LineStyle.thin;
 
-    final dataStyleCenter = CellStyle(
-      fontFamily: 'Times New Roman', fontSize: 11,
-      horizontalAlign: HorizontalAlign.Center, verticalAlign: VerticalAlign.Center,
-      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
-    );
-    
-    final dataStyleLeft = CellStyle(
-      fontFamily: 'Times New Roman', fontSize: 11,
-      horizontalAlign: HorizontalAlign.Left, verticalAlign: VerticalAlign.Center,
-      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
-    );
+    final Style dataStyleCenter = workbook.styles.add('dataStyleCenter');
+    dataStyleCenter.fontName = 'Times New Roman';
+    dataStyleCenter.fontSize = 11;
+    dataStyleCenter.hAlign = HAlignType.center;
+    dataStyleCenter.vAlign = VAlignType.center;
+    dataStyleCenter.borders.all.lineStyle = LineStyle.thin;
 
-    final dataStyleRight = CellStyle(
-      fontFamily: 'Times New Roman', fontSize: 11,
-      horizontalAlign: HorizontalAlign.Right, verticalAlign: VerticalAlign.Center,
-      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
-      numberFormat: NumFormat.standard_3,
-    );
+    final Style dataStyleLeft = workbook.styles.add('dataStyleLeft');
+    dataStyleLeft.fontName = 'Times New Roman';
+    dataStyleLeft.fontSize = 11;
+    dataStyleLeft.hAlign = HAlignType.left;
+    dataStyleLeft.vAlign = VAlignType.center;
+    dataStyleLeft.borders.all.lineStyle = LineStyle.thin;
+
+    final Style dataStyleRight = workbook.styles.add('dataStyleRight');
+    dataStyleRight.fontName = 'Times New Roman';
+    dataStyleRight.fontSize = 11;
+    dataStyleRight.hAlign = HAlignType.right;
+    dataStyleRight.vAlign = VAlignType.center;
+    dataStyleRight.borders.all.lineStyle = LineStyle.thin;
+    dataStyleRight.numberFormat = '#,###';
+
+    final Style linkStyle = workbook.styles.add('linkStyle');
+    linkStyle.fontName = 'Times New Roman';
+    linkStyle.fontSize = 11;
+    linkStyle.fontColor = '#0563C1';
+    linkStyle.underline = true;
+    linkStyle.hAlign = HAlignType.center;
+    linkStyle.vAlign = VAlignType.center;
+    linkStyle.borders.all.lineStyle = LineStyle.thin;
 
     // === HEADER ===
-    // Công ty
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue('CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ TƯ VẤN TIẾN PHÁT');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = headerInfoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = TextCellValue('Địa chỉ: 17/3 Tam Bình, Kp66, P. Hiệp Bình, TP. Hồ Chí Minh');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle = normalInfoStyle;
+    sheet.getRangeByIndex(1, 1).text = 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ TƯ VẤN TIẾN PHÁT';
+    sheet.getRangeByIndex(1, 1).cellStyle = headerInfoStyle;
+    sheet.getRangeByIndex(2, 1).text = 'Địa chỉ: 17/3 Tam Bình, Kp66, P. Hiệp Bình, TP. Hồ Chí Minh';
+    sheet.getRangeByIndex(2, 1).cellStyle = workbook.styles.add('normalInfoStyle')..fontName = 'Times New Roman'..fontSize = 11;
 
-    // Tiêu đề phiếu
-    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3), CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 3));
-    final titleCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3));
-    titleCell.value = TextCellValue('PHIẾU GIẢI CHI');
-    titleCell.cellStyle = titleStyle;
+    sheet.getRangeByIndex(4, 1, 4, 10).merge();
+    final Range titleRange = sheet.getRangeByIndex(4, 1);
+    titleRange.text = 'PHIẾU GIẢI CHI';
+    titleRange.cellStyle = titleStyle;
 
-    // Thông tin chung
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).value = TextCellValue('Người đề xuất: $employeeName');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).cellStyle = normalInfoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).value = TextCellValue('Ngày đề xuất: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).cellStyle = normalInfoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = TextCellValue('Lý do: Giải chi vật tư thi công dự án $project');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).cellStyle = normalInfoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 8)).value = TextCellValue('Gói: $project');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 8)).cellStyle = normalInfoStyle;
+    sheet.getRangeByIndex(6, 1).text = 'Người đề xuất: $employeeName';
+    sheet.getRangeByIndex(7, 1).text = 'Ngày đề xuất: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}';
+    sheet.getRangeByIndex(8, 1).text = 'Lý do: Giải chi vật tư thi công dự án $project';
+    sheet.getRangeByIndex(9, 1).text = 'Gói: $project';
 
     // === TABLE HEADER ===
-    final headers = ['STT', 'Tên vật tư/thiết bị', 'Đơn vị tính', 'Số lượng', 'Đơn giá', 'Thuế (%)', 'Thành tiền', 'Ghi chú', 'Nhà cung cấp'];
-    const headerRow = 10;
+    final headers = ['STT', 'Tên vật tư/thiết bị', 'Đơn vị tính', 'Số lượng', 'Đơn giá', 'Thuế (%)', 'Thành tiền', 'Ghi chú', 'Nhà cung cấp', 'Chứng từ'];
     for (var i = 0; i < headers.length; i++) {
-      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: headerRow));
-      cell.value = TextCellValue(headers[i]);
+      final Range cell = sheet.getRangeByIndex(11, i + 1);
+      cell.text = headers[i];
       cell.cellStyle = tableHeaderStyle;
     }
 
     // === DATA ROWS ===
-    // Theo dõi độ rộng tối đa của mỗi cột (số lượng ký tự)
-    List<int> maxColumnWidths = List.filled(headers.length, 0);
-    // Khởi tạo với độ dài của tiêu đề
-    for (int i = 0; i < headers.length; i++) {
-      maxColumnWidths[i] = headers[i].length;
-    }
-
-    // Sắp xếp theo Nhà cung cấp (note) để nhóm các giao dịch cùng nơi lại với nhau
-    filteredTransactions.sort((a, b) => (a.note ?? '').compareTo(b.note ?? ''));
-    
     double totalAmount = 0;
-    int currentRow = headerRow + 1;
+    int currentRow = 12;
+    int imageRow = 1;
+
+    // Nhóm theo nhà cung cấp
+    filteredTransactions.sort((a, b) => (a.note ?? '').compareTo(b.note ?? ''));
+
     for (int i = 0; i < filteredTransactions.length; i++) {
       final t = filteredTransactions[i];
       final taxRate = t.taxRate;
       final total = t.amount;
       final unitPriceBeforeTax = total / (1 + taxRate / 100);
       
-      final stt = (i + 1).toString();
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue(stt);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = dataStyleCenter;
-      if (stt.length > maxColumnWidths[0]) maxColumnWidths[0] = stt.length;
+      sheet.getRangeByIndex(currentRow, 1).setText((i + 1).toString());
+      sheet.getRangeByIndex(currentRow, 1).cellStyle = dataStyleCenter;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).value = TextCellValue(t.description);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).cellStyle = dataStyleLeft;
-      if (t.description.length > maxColumnWidths[1]) maxColumnWidths[1] = t.description.length;
+      sheet.getRangeByIndex(currentRow, 2).setText(t.description);
+      sheet.getRangeByIndex(currentRow, 2).cellStyle = dataStyleLeft;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow)).value = TextCellValue('Gói');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow)).cellStyle = dataStyleCenter;
-      if (3 > maxColumnWidths[2]) maxColumnWidths[2] = 3; // 'Gói' length is 3
+      sheet.getRangeByIndex(currentRow, 3).setText('Gói');
+      sheet.getRangeByIndex(currentRow, 3).cellStyle = dataStyleCenter;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow)).value = DoubleCellValue(1);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow)).cellStyle = dataStyleCenter;
+      sheet.getRangeByIndex(currentRow, 4).setNumber(1);
+      sheet.getRangeByIndex(currentRow, 4).cellStyle = dataStyleCenter;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(unitPriceBeforeTax.round()));
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow)).cellStyle = dataStyleRight;
+      sheet.getRangeByIndex(currentRow, 5).setNumber(unitPriceBeforeTax.roundToDouble());
+      sheet.getRangeByIndex(currentRow, 5).cellStyle = dataStyleRight;
       
-      final taxStr = '$taxRate%';
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).value = TextCellValue(taxStr);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).cellStyle = dataStyleCenter;
-      if (taxStr.length > maxColumnWidths[5]) maxColumnWidths[5] = taxStr.length;
+      sheet.getRangeByIndex(currentRow, 6).setText('$taxRate%');
+      sheet.getRangeByIndex(currentRow, 6).cellStyle = dataStyleCenter;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(total.round()));
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = dataStyleRight;
+      sheet.getRangeByIndex(currentRow, 7).setNumber(total.roundToDouble());
+      sheet.getRangeByIndex(currentRow, 7).cellStyle = dataStyleRight;
       
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).value = TextCellValue('Đã thanh toán');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: currentRow)).cellStyle = dataStyleCenter;
-      if (13 > maxColumnWidths[7]) maxColumnWidths[7] = 13; // 'Đã thanh toán' length
- 
-      final supplier = t.note ?? '';
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).value = TextCellValue(supplier);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: currentRow)).cellStyle = dataStyleCenter;
-      if (supplier.length > maxColumnWidths[8]) maxColumnWidths[8] = supplier.length;
+      sheet.getRangeByIndex(currentRow, 8).setText('Đã thanh toán');
+      sheet.getRangeByIndex(currentRow, 8).cellStyle = dataStyleCenter;
+      
+      sheet.getRangeByIndex(currentRow, 9).setText(t.note ?? '');
+      sheet.getRangeByIndex(currentRow, 9).cellStyle = dataStyleCenter;
+
+      // Xử lý ảnh và Hyperlink
+      if (t.imagePath != null && File(t.imagePath!).existsSync()) {
+        final String cellRef = 'Chứng từ!A$imageRow';
+        sheet.hyperlinks.add(sheet.getRangeByIndex(currentRow, 10), HyperlinkType.workbook, cellRef);
+        sheet.getRangeByIndex(currentRow, 10).setText('Xem ảnh');
+        sheet.getRangeByIndex(currentRow, 10).cellStyle = linkStyle;
+
+        // Ghi thông tin vào sheet Chứng từ
+        imageSheet.getRangeByIndex(imageRow, 1).text = 'STT: ${i + 1}';
+        imageSheet.getRangeByIndex(imageRow, 1).cellStyle = headerInfoStyle;
+        imageSheet.getRangeByIndex(imageRow + 1, 1).text = 'Nội dung: ${t.description}';
+        
+        // Chèn ảnh
+        final List<int> imageBytes = File(t.imagePath!).readAsBytesSync();
+        final Picture picture = imageSheet.pictures.addStream(imageRow + 2, 1, imageBytes);
+        
+        // Tự động điều chỉnh kích thước (giữ nguyên chất lượng nhưng scale hiển thị)
+        picture.height = 400;
+        picture.width = 300;
+
+        // Link quay lại sheet chính
+        imageSheet.hyperlinks.add(imageSheet.getRangeByIndex(imageRow, 2), HyperlinkType.workbook, '${sheet.name}!A$currentRow');
+        imageSheet.getRangeByIndex(imageRow, 2).text = '[Quay lại]';
+        imageSheet.getRangeByIndex(imageRow, 2).cellStyle = linkStyle;
+
+        imageRow += 25; // Khoảng cách giữa các ảnh
+      } else {
+        sheet.getRangeByIndex(currentRow, 10).setText('Không có');
+        sheet.getRangeByIndex(currentRow, 10).cellStyle = dataStyleCenter;
+      }
       
       totalAmount += total;
       currentRow++;
     }
 
     // === FOOTER ===
-    final footerStyle = CellStyle(bold: true, fontFamily: 'Times New Roman', fontSize: 11, topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder);
-    final footerStyleRight = CellStyle(
-      bold: true, fontFamily: 'Times New Roman', fontSize: 11, 
-      horizontalAlign: HorizontalAlign.Right, 
-      topBorder: thinBorder, bottomBorder: thinBorder, leftBorder: thinBorder, rightBorder: thinBorder,
-      numberFormat: NumFormat.standard_3,
-    );
+    final Style footerStyle = workbook.styles.add('footerStyle');
+    footerStyle.bold = true;
+    footerStyle.fontName = 'Times New Roman';
+    footerStyle.fontSize = 11;
+    footerStyle.borders.all.lineStyle = LineStyle.thin;
+
+    final Style footerStyleRight = workbook.styles.add('footerStyleRight');
+    footerStyleRight.bold = true;
+    footerStyleRight.fontName = 'Times New Roman';
+    footerStyleRight.fontSize = 11;
+    footerStyleRight.hAlign = HAlignType.right;
+    footerStyleRight.borders.all.lineStyle = LineStyle.thin;
+    footerStyleRight.numberFormat = '#,###';
 
     // Tổng cộng
-    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow));
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue('Tổng');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = footerStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(totalAmount.round()));
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = footerStyleRight;
-
-    // Đã nhận & Còn
-    currentRow++;
-    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow));
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue('Đã nhận');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = footerStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format(totalIncome.round()));
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = footerStyleRight;
+    sheet.getRangeByIndex(currentRow, 1, currentRow, 6).merge();
+    sheet.getRangeByIndex(currentRow, 1).text = 'Tổng';
+    sheet.getRangeByIndex(currentRow, 1).cellStyle = footerStyle;
+    sheet.getRangeByIndex(currentRow, 7).setNumber(totalAmount.roundToDouble());
+    sheet.getRangeByIndex(currentRow, 7).cellStyle = footerStyleRight;
 
     currentRow++;
-    sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow));
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).value = TextCellValue('Còn');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow)).cellStyle = footerStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).value = TextCellValue(currencyFormat.format((totalIncome - totalAmount).round()));
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow)).cellStyle = footerStyleRight;
+    sheet.getRangeByIndex(currentRow, 1, currentRow, 6).merge();
+    sheet.getRangeByIndex(currentRow, 1).text = 'Đã nhận';
+    sheet.getRangeByIndex(currentRow, 1).cellStyle = footerStyle;
+    sheet.getRangeByIndex(currentRow, 7).setNumber(totalIncome.roundToDouble());
+    sheet.getRangeByIndex(currentRow, 7).cellStyle = footerStyleRight;
 
-    // Gộp ô Nhà cung cấp (Cột 8)
-    int startRow = headerRow + 1;
-    int dataEndRow = headerRow + filteredTransactions.length;
-    while (startRow <= dataEndRow) {
-      String currentSupplier = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: startRow)).value?.toString() ?? '';
-      int endRow = startRow;
-      
-      while (endRow + 1 <= dataEndRow && 
-             (sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: endRow + 1)).value?.toString() ?? '') == currentSupplier) {
-        endRow++;
-      }
-      
-      if (endRow > startRow) {
-        sheet.merge(
-          CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: startRow),
-          CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: endRow),
-        );
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: startRow)).cellStyle = dataStyleCenter;
-      }
-      startRow = endRow + 1;
-    }
+    currentRow++;
+    sheet.getRangeByIndex(currentRow, 1, currentRow, 6).merge();
+    sheet.getRangeByIndex(currentRow, 1).text = 'Còn';
+    sheet.getRangeByIndex(currentRow, 1).cellStyle = footerStyle;
+    sheet.getRangeByIndex(currentRow, 7).setNumber((totalIncome - totalAmount).roundToDouble());
+    sheet.getRangeByIndex(currentRow, 7).cellStyle = footerStyleRight;
 
-    // === AUTO-FIT COLUMNS ===
-    // Gọi ở cuối cùng để đảm bảo tất cả dữ liệu đã được ghi
-    for (int i = 0; i < maxColumnWidths.length; i++) {
-      // Tăng hệ số lên 1.3 và padding lên 7 để an toàn hơn với font Times New Roman
-      double width = (maxColumnWidths[i] * 1.3 + 7).toDouble();
-      
-      // Giới hạn độ rộng
-      if (width > 80) width = 80;
-      
-      // Độ rộng tối thiểu cho các cột
-      if (i == 0 || i == 2 || i == 3 || i == 5) {
-        if (width < 10) width = 10;
-      } else {
-        if (width < 18) width = 18;
-      }
-      
-      sheet.setColumnWidth(i, width);
-    }
+    // === ĐỘ RỘNG CỘT ===
+    sheet.setColumnWidthInPixels(1, 40);
+    sheet.setColumnWidthInPixels(2, 250);
+    sheet.setColumnWidthInPixels(3, 60);
+    sheet.setColumnWidthInPixels(4, 50);
+    sheet.setColumnWidthInPixels(5, 100);
+    sheet.setColumnWidthInPixels(6, 60);
+    sheet.setColumnWidthInPixels(7, 100);
+    sheet.setColumnWidthInPixels(8, 100);
+    sheet.setColumnWidthInPixels(9, 150);
+    sheet.setColumnWidthInPixels(10, 80);
+
+    imageSheet.setColumnWidthInPixels(1, 400);
 
     // Chữ ký
     currentRow += 2;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).value = TextCellValue('Người Đề Xuất');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).cellStyle = headerInfoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).value = TextCellValue('Thủ Quỹ');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).cellStyle = headerInfoStyle;
+    sheet.getRangeByIndex(currentRow, 2).text = 'Người Đề Xuất';
+    sheet.getRangeByIndex(currentRow, 2).cellStyle = headerInfoStyle;
+    sheet.getRangeByIndex(currentRow, 7).text = 'Thủ Quỹ';
+    sheet.getRangeByIndex(currentRow, 7).cellStyle = headerInfoStyle;
 
     currentRow += 4;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).value = TextCellValue(employeeName);
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow)).cellStyle = normalInfoStyle;
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).value = TextCellValue('Phan Thu Uyên');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow)).cellStyle = normalInfoStyle;
+    sheet.getRangeByIndex(currentRow, 2).text = employeeName;
+    sheet.getRangeByIndex(currentRow, 7).text = 'Phan Thu Uyên';
 
-    // === COLUMN WIDTHS ===
-    sheet.setColumnWidth(0, 5);   // STT
-    sheet.setColumnWidth(1, 30);  // Tên
-    sheet.setColumnWidth(2, 12);  // ĐVT
-    sheet.setColumnWidth(3, 10);  // SL
-    sheet.setColumnWidth(4, 15);  // Đơn giá
-    sheet.setColumnWidth(5, 10);  // Thuế
-    sheet.setColumnWidth(6, 15);  // Thành tiền
-    sheet.setColumnWidth(7, 15);  // Ghi chú
-    sheet.setColumnWidth(8, 20);  // Nhà cung cấp
-
-    // === SAVE AND SHARE ===
+    // === LƯU VÀ SHARE ===
     try {
+      final List<int> bytes = workbook.saveAsStream();
+      workbook.dispose();
+
       final directory = await getApplicationDocumentsDirectory();
       final fileName = 'PhieuGiaiChi_${project}_T${month}_$year.xlsx';
       final filePath = '${directory.path}/$fileName';
       final file = File(filePath);
-      
-      final fileBytes = excel.save();
-      if (fileBytes != null) {
-        await file.writeAsBytes(fileBytes);
-        if (context.mounted) {
-          _showFileActionSheet(context, filePath, fileName);
-        }
+      await file.writeAsBytes(bytes);
+
+      if (context.mounted) {
+        _showFileActionSheet(context, filePath, fileName);
       }
     } catch (e) {
       debugPrint('Error saving Excel: $e');

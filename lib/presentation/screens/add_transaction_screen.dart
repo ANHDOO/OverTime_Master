@@ -9,9 +9,11 @@ import '../../logic/providers/cash_transaction_provider.dart';
 import '../../data/models/cash_transaction.dart';
 import '../widgets/smart_money_input.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/services/ocr_service.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final String? initialImagePath;
+  const AddTransactionScreen({super.key, this.initialImagePath});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -28,12 +30,68 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   int _taxRate = 0;
   String? _imagePath;
   final ImagePicker _picker = ImagePicker();
+  final OCRService _ocrService = OCRService();
+  bool _isProcessingOCR = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialImagePath != null) {
+      _processInitialImage(widget.initialImagePath!);
+    }
+  }
+
+  Future<void> _processInitialImage(String imagePath) async {
+    setState(() {
+      _isProcessingOCR = true;
+      _imagePath = imagePath;
+      _paymentType = 'Chụp hình chuyển khoản';
+    });
+
+    try {
+      // Copy shared image to permanent storage
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'shared_receipt_${DateTime.now().millisecondsSinceEpoch}${path.extension(imagePath)}';
+      final savedPath = path.join(directory.path, fileName);
+      await File(imagePath).copy(savedPath);
+      
+      final result = await _ocrService.processReceipt(savedPath);
+      if (mounted) {
+        setState(() {
+          _imagePath = savedPath;
+          if (result.amount != null) {
+            _amountController.text = NumberFormat('#,###', 'vi_VN').format(result.amount);
+          }
+          if (result.description != null) {
+            _descriptionController.text = result.description!;
+          }
+          if (result.date != null) {
+            _selectedDate = result.date!;
+          }
+          if (result.vendor != null) {
+            _noteController.text = result.vendor!;
+          } else if (result.transactionId != null) {
+            _noteController.text = result.transactionId!;
+          }
+          _isProcessingOCR = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessingOCR = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể đọc thông tin từ ảnh: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
     _noteController.dispose();
+    _ocrService.dispose();
     super.dispose();
   }
 
@@ -208,11 +266,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Thêm giao dịch')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: Column(
+        children: [
+          if (_isProcessingOCR)
+            const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
             // Project Selection
             _buildSectionTitle('Dự án / Quỹ', isDark),
             const SizedBox(height: 8),
@@ -274,8 +337,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             // Save Button
             _buildSaveButton(isDark),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -439,7 +505,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           borderRadius: AppRadius.borderMd,
           borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
+      scrollPadding: const EdgeInsets.only(bottom: 150),
     );
   }
 
@@ -481,7 +549,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               borderRadius: AppRadius.borderMd,
               borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
+          scrollPadding: const EdgeInsets.only(bottom: 250),
         );
       },
       optionsViewBuilder: (context, onSelected, options) {

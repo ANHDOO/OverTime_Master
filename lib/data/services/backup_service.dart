@@ -180,20 +180,21 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  // Auto-backup database
-  Future<Map<String, bool>> backupAll() async {
+  // Auto-backup database and images
+  Future<Map<String, bool>> backupAll({Map<String, List<String>>? projectImagePaths}) async {
     final results = <String, bool>{};
 
     // Backup database
     results['database'] = await backupDatabase();
 
-    // Backup images (if any)
-    final provider = await _getOvertimeProvider();
-    if (provider != null) {
-      final List<String> imagePaths = await provider.getImagesSize() > 0 ? List<String>.from(await _getImagePaths(provider)) : [];
-      if (imagePaths.isNotEmpty) {
-        results['images'] = await backupImages(imagePaths);
+    // Backup images by project
+    if (projectImagePaths != null && projectImagePaths.isNotEmpty) {
+      bool allImagesSuccess = true;
+      for (final entry in projectImagePaths.entries) {
+        final success = await backupImages(entry.value, projectName: entry.key);
+        if (!success) allImagesSuccess = false;
       }
+      results['images'] = allImagesSuccess;
     }
 
     return results;
@@ -306,7 +307,7 @@ class BackupService extends ChangeNotifier {
   }
 
   // Backup images to Google Drive
-  Future<bool> backupImages(List<String> imagePaths) async {
+  Future<bool> backupImages(List<String> imagePaths, {String projectName = 'Mặc định'}) async {
     try {
       if (_driveApi == null) {
         final signedIn = await signInSilently();
@@ -316,32 +317,72 @@ class BackupService extends ChangeNotifier {
       final folderId = await getOrCreateAppFolder();
       if (folderId == null) return false;
 
-      // Create images subfolder
+      // Create/Get images subfolder
       final imagesFolderId = await _getOrCreateImagesFolder(folderId);
       if (imagesFolderId == null) return false;
+
+      // Create/Get project subfolder within images folder
+      final projectFolderId = await _getOrCreateSubfolder(imagesFolderId, projectName);
+      if (projectFolderId == null) return false;
+
+      // Get list of existing files in project folder to avoid duplicates
+      final existingFilesQuery = "'$projectFolderId' in parents and trashed = false";
+      final existingFilesList = await _driveApi!.files.list(q: existingFilesQuery, $fields: 'files(name)');
+      final existingFileNames = existingFilesList.files?.map((f) => f.name).toSet() ?? {};
 
       for (final imagePath in imagePaths) {
         final imageFile = File(imagePath);
         if (!await imageFile.exists()) continue;
 
         final fileName = path.basename(imagePath);
+        
+        // Skip if already exists
+        if (existingFileNames.contains(fileName)) {
+          debugPrint('Image $fileName already exists in project $projectName on Drive, skipping.');
+          continue;
+        }
+
         final bytes = await imageFile.readAsBytes();
 
         final fileMetadata = drive.File()
           ..name = fileName
-          ..parents = [imagesFolderId];
+          ..parents = [projectFolderId];
 
         final media = drive.Media(Stream.value(bytes), bytes.length);
         await _driveApi!.files.create(
           fileMetadata,
           uploadMedia: media,
         );
+        debugPrint('Uploaded image: $fileName to project: $projectName');
       }
 
       return true;
     } catch (e) {
       debugPrint('Backup images error: $e');
       return false;
+    }
+  }
+
+  /// Helper to get or create a subfolder by name
+  Future<String?> _getOrCreateSubfolder(String parentId, String folderName) async {
+    try {
+      final query = "name = '$folderName' and '$parentId' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+      final list = await _driveApi!.files.list(q: query);
+      
+      if (list.files != null && list.files!.isNotEmpty) {
+        return list.files!.first.id;
+      }
+
+      final folderMetadata = drive.File()
+        ..name = folderName
+        ..mimeType = 'application/vnd.google-apps.folder'
+        ..parents = [parentId];
+
+      final folder = await _driveApi!.files.create(folderMetadata);
+      return folder.id;
+    } catch (e) {
+      debugPrint('Error creating subfolder $folderName: $e');
+      return null;
     }
   }
 

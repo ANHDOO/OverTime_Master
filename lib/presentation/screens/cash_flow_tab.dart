@@ -50,6 +50,14 @@ class _CashFlowTabState extends State<CashFlowTab> {
         }
 
         final projects = _getProjects(provider.cashTransactions);
+        
+        // Fix: Reset filter if the selected project no longer exists (e.g. after deletion)
+        if (_selectedProject != 'Tất cả' && !projects.contains(_selectedProject)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _selectedProject = 'Tất cả');
+          });
+        }
+
         final filteredTransactions = _filterTransactions(provider.cashTransactions);
         final income = _getFilteredIncome(provider.cashTransactions);
         final expense = _getFilteredExpense(provider.cashTransactions);

@@ -77,7 +77,8 @@ class _BackupScreenState extends State<BackupScreen> {
   Future<void> _backupDatabase() async {
     setState(() => _isLoading = true);
     try {
-      final results = await _backupService.backupAll();
+      final projectImagePaths = Provider.of<CashTransactionProvider>(context, listen: false).getProjectImagePaths();
+      final results = await _backupService.backupAll(projectImagePaths: projectImagePaths);
       if (results['database'] == true) {
         _showSuccess('Sao lưu thành công!');
         await _loadBackupData();

@@ -5,14 +5,23 @@ import 'package:path_provider/path_provider.dart';
 import '../../data/models/cash_transaction.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/services/google_sheets_service.dart';
+import '../../data/services/backup_service.dart';
 
 class CashTransactionProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
+  final BackupService _backupService = BackupService();
   List<CashTransaction> _cashTransactions = [];
   bool _isLoading = false;
+  String? _pendingSharedImagePath;
 
   List<CashTransaction> get cashTransactions => _cashTransactions;
   bool get isLoading => _isLoading;
+  String? get pendingSharedImagePath => _pendingSharedImagePath;
+
+  void setPendingSharedImagePath(String? path) {
+    _pendingSharedImagePath = path;
+    notifyListeners();
+  }
 
   Future<void> fetchCashTransactions() async {
     _isLoading = true;
@@ -25,6 +34,32 @@ class CashTransactionProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Get all unique image paths from transactions
+  List<String> getAllImagePaths() {
+    return _cashTransactions
+        .where((t) => t.imagePath != null)
+        .map((t) => t.imagePath!)
+        .toSet()
+        .toList();
+  }
+
+  /// Get image paths mapped by project
+  Map<String, List<String>> getProjectImagePaths() {
+    final map = <String, List<String>>{};
+    for (final t in _cashTransactions) {
+      if (t.imagePath != null) {
+        final project = t.project;
+        if (!map.containsKey(project)) {
+          map[project] = [];
+        }
+        if (!map[project]!.contains(t.imagePath!)) {
+          map[project]!.add(t.imagePath!);
+        }
+      }
+    }
+    return map;
   }
 
   Future<void> addCashTransaction({
@@ -51,7 +86,17 @@ class CashTransactionProvider with ChangeNotifier {
     );
     await _storageService.insertCashTransaction(transaction);
     await fetchCashTransactions();
+    
+    // Sync to Sheets
     await _syncProjectToSheets(project);
+
+    // Sync image to Google Drive if available and signed in
+    if (imagePath != null) {
+      final isSignedIn = await _backupService.isSignedIn();
+      if (isSignedIn) {
+        await _backupService.backupImages([imagePath], projectName: project);
+      }
+    }
   }
 
   Future<void> deleteCashTransaction(int id) async {
@@ -84,6 +129,14 @@ class CashTransactionProvider with ChangeNotifier {
     await _syncProjectToSheets(oldProject);
     if (transaction.project != oldProject) {
       await _syncProjectToSheets(transaction.project);
+    }
+
+    // Sync image to Google Drive if updated and available
+    if (transaction.imagePath != null) {
+      final isSignedIn = await _backupService.isSignedIn();
+      if (isSignedIn) {
+        await _backupService.backupImages([transaction.imagePath!], projectName: transaction.project);
+      }
     }
   }
 
@@ -140,8 +193,11 @@ class CashTransactionProvider with ChangeNotifier {
       final files = directory.listSync();
       double totalSize = 0;
       for (var file in files) {
-        if (file is File && path.basename(file.path).startsWith('receipt_')) {
-          totalSize += await file.length();
+        if (file is File) {
+          final fileName = path.basename(file.path);
+          if (fileName.startsWith('receipt_') || fileName.startsWith('shared_receipt_')) {
+            totalSize += await file.length();
+          }
         }
       }
       return totalSize / (1024 * 1024);
@@ -160,9 +216,12 @@ class CashTransactionProvider with ChangeNotifier {
           .toSet();
 
       for (var file in files) {
-        if (file is File && path.basename(file.path).startsWith('receipt_')) {
-          if (!dbImages.contains(file.path)) {
-            await file.delete();
+        if (file is File) {
+          final fileName = path.basename(file.path);
+          if (fileName.startsWith('receipt_') || fileName.startsWith('shared_receipt_')) {
+            if (!dbImages.contains(file.path)) {
+              await file.delete();
+            }
           }
         }
       }

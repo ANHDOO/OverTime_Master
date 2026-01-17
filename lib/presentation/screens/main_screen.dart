@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../logic/providers/overtime_provider.dart';
 import '../../logic/providers/debt_provider.dart';
+import '../../logic/providers/cash_transaction_provider.dart';
 import '../../data/models/overtime_entry.dart';
 import '../../core/theme/app_theme.dart';
 import 'add_entry_screen.dart';
@@ -32,6 +33,43 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    
+    // Listen for pending shares
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final provider = Provider.of<CashTransactionProvider>(context, listen: false);
+        provider.addListener(_checkPendingShare);
+        _checkPendingShare();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Remove listener safely
+    try {
+      final provider = Provider.of<CashTransactionProvider>(context, listen: false);
+      provider.removeListener(_checkPendingShare);
+    } catch (e) {
+      debugPrint('Error removing listener: $e');
+    }
+    super.dispose();
+  }
+
+  void _checkPendingShare() {
+    if (!mounted) return;
+    final provider = Provider.of<CashTransactionProvider>(context, listen: false);
+    if (provider.pendingSharedImagePath != null) {
+      final imagePath = provider.pendingSharedImagePath!;
+      provider.setPendingSharedImagePath(null); // Clear it
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddTransactionScreen(initialImagePath: imagePath),
+        ),
+      );
+    }
   }
 
   void _onOTMonthChanged(DateTime month) {
