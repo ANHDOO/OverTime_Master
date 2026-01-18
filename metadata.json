@@ -1,0 +1,8 @@
+{
+  "versionName": "1.4.11",
+  "versionCode": 69,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.4.11/overtime_1.4.11.apk",
+  "changelog": "- Cải thiện hệ thống thông báo: chuyên nghiệp hơn, thêm thanh tiến trình khi tải.\n- Tối ưu hóa tải bản cập nhật dưới nền, tăng độ ổn định khi chuyển đổi ứng dụng.\n- Cải thiện nhắc nhở VAT: nhắc nhở tức thì khi thêm giao dịch mới.\n- Quét và lên lịch nhắc VAT chính xác hơn tại màn hình khởi động.\n- Sửa lỗi hiển thị nhật ký thay đổi (changelog) bị thiếu các mục con thụt lề.\n",
+  "publishedAt": "2026-01-18T16:50:44.766243Z",
+  "fileSize": "57.6MB"
+}

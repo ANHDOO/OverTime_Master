@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "471381440256",
+    "project_id": "idmav-app",
+    "storage_bucket": "idmav-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471381440256:android:02459374df27e21d6565e5",
+        "android_client_info": {
+          "package_name": "com.anhdo.note_overtime.note_overtime"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "471381440256-ajbeeb2ku5datn5s7t4ope4sj4krip5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anhdo.note_overtime.note_overtime",
+            "certificate_hash": "eadecbd61d52f12b13a40af2caa0341ecce8335f"
+          }
+        },
+        {
+          "client_id": "471381440256-lhfk16sgkigrcjbl20uctjitkqr1jisl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anhdo.note_overtime.note_overtime",
+            "certificate_hash": "f04049de04ccb4690988eeedc12c5a58e9125f0b"
+          }
+        },
+        {
+          "client_id": "471381440256-3nin3hmvp7ira6h5kpumg048gpotvm1u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXRAazX7RoOHlTttijPzA5FaH5tp89NnA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "471381440256-3nin3hmvp7ira6h5kpumg048gpotvm1u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

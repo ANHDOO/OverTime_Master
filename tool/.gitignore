@@ -1,0 +1,7 @@
+# Google Drive credentials và tokens
+credentials.json
+token.pickle
+
+# Temporary files
+temp_*.md
+temp_*.json
