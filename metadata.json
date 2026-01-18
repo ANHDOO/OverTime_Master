@@ -1,0 +1,8 @@
+{
+  "versionName": "1.4.12",
+  "versionCode": 70,
+  "downloadUrl": "https://github.com/ANHDOO/OverTime_Master/releases/download/v1.4.12/overtime_1.4.12.apk",
+  "changelog": "- Tối ưu hóa tốc độ sao lưu: Tải ảnh song song (5 ảnh cùng lúc).\n- Sao lưu thông minh: Tự động bỏ qua các ảnh đã có trên Drive và trùng khớp kích thước.\n- Giảm mức sử dụng bộ nhớ khi sao lưu cơ sở dữ liệu bằng cơ chế luồng (streaming).\n",
+  "publishedAt": "2026-01-18T17:57:50.650846Z",
+  "fileSize": "57.6MB"
+}
